@@ -1,0 +1,4338 @@
+
+global proc hz.autoAFR()
+{
+catchQuiet (js_source());
+string $all_anims[]=`ls "*all_anim"`;
+string $all_anims1[]=`ls "*:all_anim"`;
+string $all_anims2[]=`ls "*_all_anim"`;
+
+$all_anims=stringArrayCatenate($all_anims, $all_anims1);
+$all_anims=stringArrayCatenate($all_anims, $all_anims2);
+
+if (`window -q -ex CharWindow` == true) deleteUI CharWindow;
+window -w 510 -h 400 -s false -t "Automated \"jason schleifer's Animator Friendly Rig\" v1.1 by H.Z." -menuBar true CharWindow;
+
+
+string $mainForm = `formLayout baseFL ` ;
+
+string $tabs = `tabLayout -w 300 -h 300 -imw 5 -imh 5 baseTL` ;
+setParent $mainForm;
+
+formLayout -edit
+	-attachForm $tabs "top" 10
+	-attachForm $tabs "left" 10
+	-attachForm $tabs "bottom" 10
+	-attachForm $tabs "right" 10
+ $mainForm;
+ 
+setParent $tabs;
+string $formRig = `formLayout -numberOfDivisions 100 `;
+string $DUMMY_large=`button -w 350 -h 115 -bgc 0.6 0.84 0.9 -ann "Create Dummy" -label "CREATE DUMMY" -command "hz.makeDummy"`;
+string $RIG_large=`button -w 350 -h 115 -bgc  0.964 0.766 0.585 -ann "Create Rig" -label "CREATE RIG" -command "hz.makeRig"`;
+string $checkFifth=`checkBox -label "Fifth finger" chkFifth`;
+string $checkDoubleKnee=`checkBox -label "Double Knee" -en false chkDknee`;		
+
+			
+formLayout -edit
+
+	-attachForm $DUMMY_large "top" 40
+	-attachForm $DUMMY_large "left" 60
+	
+	-attachForm $RIG_large "top" 160
+	-attachForm $RIG_large "left" 60
+	
+	
+	-attachForm $checkFifth "top" 20
+	-attachForm $checkFifth "left" 60
+	
+	
+  -attachForm $checkDoubleKnee "top" 20
+	-attachForm $checkDoubleKnee "left" 140
+	
+
+
+ $formRig;
+ 
+		
+tabLayout -edit
+			-tabLabel  $formRig "Rig Creation" 
+			$tabs;	
+			
+			
+showWindow CharWindow;
+		
+window -e -w 510 -h 400  CharWindow;	
+}
+
+
+global proc hz.select(string $sel)
+{
+string $s =`optionMenu -q -v charMenu`;
+string $prefix=`substitute "all_anim" $s ""`;
+select -r ($prefix+$sel);
+}
+
+
+
+global proc hz.makeRig()
+{
+source wf.l_drivenKeys;
+source wf.r_drivenKeys;
+source wf.js.createMatch;
+hz.torsoRig();
+hz.armRigLeft();
+hz.armRigRight();
+hz.handRigLeft();
+hz.handRigRight();
+hz.legRigLeft();
+hz.legRigRight();
+hz.finish();
+if (`window -q -ex CharWindow` == true) deleteUI CharWindow;
+hz.autoAFR();
+}
+
+
+global proc hz.torsoRig()
+{
+
+catchQuiet (js_source());
+//softSelect -e -softSelectEnabled false; //maya 2008
+
+float $sc =`getAttr "skeleton_dummy_grp.scaleX"`;
+
+if (!`objExists all_anim`)
+{
+string $main=`group -em -n "all_anim"`; 
+xform -os -piv 0 0 0 $main;
+connectAttr all_anim.scaleY all_anim.scaleX;
+connectAttr all_anim.scaleY all_anim.scaleZ;
+setAttr  -keyable false -channelBox false "all_anim.sx";
+setAttr  -keyable false -channelBox false "all_anim.sz";
+aliasAttr globalScale all_anim.scaleY;
+}
+
+float $x_torso_base[] = `xform -q -ws -piv torso_base_dummy`;
+float $x_torso_1[] = `xform -q -ws -piv torso_1_dummy`;
+float $x_torso_2[] = `xform -q -ws -piv torso_2_dummy`;
+float $x_torso_end[] = `xform -q -ws -piv torso_end_dummy`;
+
+select -cl  ;
+joint -n "tb" -p $x_torso_base[0] $x_torso_base[1] $x_torso_base[2] ;
+joint -n "t1" -p $x_torso_1[0] $x_torso_1[1] $x_torso_1[2] ;
+joint -e -zso -oj xyz -sao yup tb;
+joint -n "t2" -p $x_torso_2[0] $x_torso_2[1] $x_torso_2[2] ;
+joint -e -zso -oj xyz -sao yup t1;
+joint -n "te" -p $x_torso_end[0] $x_torso_end[1] $x_torso_end[2] ;
+joint -e -zso -oj xyz -sao yup t2;
+
+select -r tb; 
+js_splitSelJoint 2;
+select -r t1; 
+js_splitSelJoint 2;
+select -r t2; 
+js_splitSelJoint 2;
+
+select -hi tb;
+js_hashRename "torso_#_skin";
+
+select -cl;
+joint -n "hip_skin" -p $x_torso_base[0] $x_torso_base[1] $x_torso_base[2] ;
+select -cl;
+joint -n "shoulder_skin" -p $x_torso_end[0] $x_torso_end[1] $x_torso_end[2] ;
+
+float $or_x=`getAttr "torso_1_skin.jointOrientX"`; float $or_y=`getAttr "torso_1_skin.jointOrientY"`; float $or_z=`getAttr "torso_1_skin.jointOrientZ"`;
+
+setAttr "hip_skin.jointOrientX" $or_x;
+setAttr "hip_skin.jointOrientY" $or_y;
+setAttr "hip_skin.jointOrientZ" $or_z;
+
+setAttr "shoulder_skin.jointOrientX" $or_x;
+setAttr "shoulder_skin.jointOrientY" $or_y;
+setAttr "shoulder_skin.jointOrientZ" $or_z;
+
+string $hipCtrl=cc_arrow_4_Circle();
+$hipCtrl=`rename $hipCtrl "hip_anim"`;
+
+string $shoulderCtrl=cc_arrow_2_Circle();
+$shoulderCtrl=`rename $shoulderCtrl "shoulder_anim"`;
+
+xform -ws -t $x_torso_base[0] $x_torso_base[1] $x_torso_base[2] $hipCtrl;
+scale -r  $sc $sc $sc $hipCtrl;
+xform -ws -t $x_torso_end[0] $x_torso_end[1] $x_torso_end[2] $shoulderCtrl;
+rotate -r -os 0 0 -90 $shoulderCtrl;
+scale -r (0.9*$sc) (0.9*$sc) (0.9*$sc) $shoulderCtrl;
+
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $hipCtrl;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $shoulderCtrl;
+rotate -r -os 0 180 0 $hipCtrl;
+
+setAttr "hip_anim.rotateOrder" 2;
+setAttr "hip_skin.rotateOrder" 2;
+setAttr "shoulder_anim.rotateOrder" 2;
+setAttr "shoulder_skin.rotateOrder" 2;
+
+setAttr -lock true -keyable false -channelBox false "hip_anim.sx";
+setAttr -lock true -keyable false -channelBox false "hip_anim.sy";
+setAttr -lock true -keyable false -channelBox false "hip_anim.sz";
+setAttr -lock true -keyable false -channelBox false "hip_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "shoulder_anim.sx";
+setAttr -lock true -keyable false -channelBox false "shoulder_anim.sy";
+setAttr -lock true -keyable false -channelBox false "shoulder_anim.sz";
+setAttr -lock true -keyable false -channelBox false "shoulder_anim.v";
+
+string $ik[]=`ikHandle -n "torso_IkHandle" -sol ikSplineSolver -sj torso_1_skin -ee torso_7_skin`;
+rename $ik[1] "torso_ik_effector";
+string $curve=`rename $ik[2] "torso_ik_curve"`;
+
+skinCluster -tsb hip_skin shoulder_skin $curve;
+js_createStretchSpline "torso_ik_curve" 1 1 "all_anim" "globalScale";
+
+setAttr "torso_IkHandle.dTwistControlEnable" 1;
+setAttr torso_IkHandle.dWorldUpType 4;
+setAttr "torso_IkHandle.dWorldUpVectorY" 0;
+setAttr "torso_IkHandle.dWorldUpVectorZ" 1;
+setAttr "torso_IkHandle.dWorldUpVectorEndY" 0;
+setAttr "torso_IkHandle.dWorldUpVectorEndZ" -1;
+setAttr torso_IkHandle.dWorldUpAxis 4;
+
+connectAttr hip_anim.worldMatrix[0] torso_IkHandle.dWorldUpMatrix;
+connectAttr shoulder_anim.worldMatrix[0] torso_IkHandle.dWorldUpMatrixEnd;
+
+parentConstraint -mo -weight 1 $hipCtrl hip_skin;
+parentConstraint -mo -weight 1 $shoulderCtrl shoulder_skin;
+
+select -cl  ;
+
+joint -n "torso_base_joint" -p $x_torso_base[0] $x_torso_base[1] $x_torso_base[2] ;
+joint -n "torso_1_anim" -p $x_torso_1[0] $x_torso_1[1] $x_torso_1[2] ;
+joint -e -oj yzx -secondaryAxisOrient zup -ch -zso "torso_base_joint";
+joint -n "torso_2_anim" -p $x_torso_2[0] $x_torso_2[1] $x_torso_2[2] ;
+joint -e -oj yzx -secondaryAxisOrient zup -ch -zso "torso_1_anim";
+joint -n "torso_end_joint" -p $x_torso_end[0] $x_torso_end[1] $x_torso_end[2] ;
+joint -e -oj yzx -secondaryAxisOrient zup -ch -zso "torso_2_anim";
+
+
+setAttr "torso_base_joint.rotateOrder" 2;
+setAttr "torso_1_anim.rotateOrder" 2;
+setAttr "torso_2_anim.rotateOrder" 2;
+
+string $bodyAnim=`curve -n "body_anim" -d 1 -p -2 0 -2 -p 2 0 -2 -p 2 0 2 -p -2 0 2 -p -2 0 -2 -k 0 -k 1 -k 2 -k 3 -k 4 `;
+xform -ws -t $x_torso_base[0] $x_torso_base[1] $x_torso_base[2] $bodyAnim;
+scale -r  $sc $sc $sc $bodyAnim;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $bodyAnim;
+
+parent torso_base_joint $bodyAnim;
+group -n "hip_grp" hip_anim;
+group -n "shoulder_grp" shoulder_anim;
+parent hip_grp torso_base_joint;
+parent shoulder_grp torso_base_joint;
+
+parentConstraint -mo -w 1 torso_end_joint shoulder_grp ;
+setAttr "body_anim.rotateOrder" 2;
+
+// Pivot create
+select -r "body_anim";
+js_pivot_create;
+select -r "body_anim";
+js_pivot_toggle -1;
+
+
+setAttr -lock true -keyable false -channelBox false "body_anim.sx";
+setAttr -lock true -keyable false -channelBox false "body_anim.sy";
+setAttr -lock true -keyable false -channelBox false "body_anim.sz";
+setAttr -lock true -keyable false -channelBox false "body_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "torso_1_anim.tx";
+setAttr -lock true -keyable false -channelBox false "torso_1_anim.ty";
+setAttr -lock true -keyable false -channelBox false "torso_1_anim.tz";
+setAttr -lock true -keyable false -channelBox false "torso_1_anim.sx";
+setAttr -lock true -keyable false -channelBox false "torso_1_anim.sy";
+setAttr -lock true -keyable false -channelBox false "torso_1_anim.sz";
+setAttr -lock true -keyable false -channelBox false "torso_1_anim.v";
+setAttr -keyable false -channelBox false "torso_1_anim.radius";
+
+setAttr -lock true -keyable false -channelBox false "torso_2_anim.tx";
+setAttr -lock true -keyable false -channelBox false "torso_2_anim.ty";
+setAttr -lock true -keyable false -channelBox false "torso_2_anim.tz";
+setAttr -lock true -keyable false -channelBox false "torso_2_anim.sx";
+setAttr -lock true -keyable false -channelBox false "torso_2_anim.sy";
+setAttr -lock true -keyable false -channelBox false "torso_2_anim.sz";
+setAttr -lock true -keyable false -channelBox false "torso_2_anim.v";
+setAttr -keyable false -channelBox false "torso_2_anim.radius";
+
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.tx";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.ty";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.tz";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.rx";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.ry";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.rz";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.sx";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.sy";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.sz";
+setAttr -lock true -keyable false -channelBox false "torso_base_joint.v";
+setAttr -keyable false -channelBox false "torso_base_joint.radius";
+
+
+
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.tx";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.ty";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.tz";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.rx";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.ry";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.rz";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.sx";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.sy";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.sz";
+setAttr -lock true -keyable false -channelBox false "torso_end_joint.v";
+setAttr -keyable false -channelBox false "torso_end_joint.radius";
+
+
+
+setAttr -lock true -keyable false -channelBox false "hip_grp.tx";
+setAttr -lock true -keyable false -channelBox false "hip_grp.ty";
+setAttr -lock true -keyable false -channelBox false "hip_grp.tz";
+setAttr -lock true -keyable false -channelBox false "hip_grp.rx";
+setAttr -lock true -keyable false -channelBox false "hip_grp.ry";
+setAttr -lock true -keyable false -channelBox false "hip_grp.rz";
+setAttr -lock true -keyable false -channelBox false "hip_grp.sx";
+setAttr -lock true -keyable false -channelBox false "hip_grp.sy";
+setAttr -lock true -keyable false -channelBox false "hip_grp.sz";
+setAttr -lock true -keyable false -channelBox false "hip_grp.v";
+
+setAttr  -keyable false -channelBox false "shoulder_grp.tx";
+setAttr  -keyable false -channelBox false "shoulder_grp.ty";
+setAttr  -keyable false -channelBox false "shoulder_grp.tz";
+setAttr  -keyable false -channelBox false "shoulder_grp.rx";
+setAttr  -keyable false -channelBox false "shoulder_grp.ry";
+setAttr -lock true -keyable false -channelBox false "shoulder_grp.rz";
+setAttr -lock true -keyable false -channelBox false "shoulder_grp.sx";
+setAttr -lock true -keyable false -channelBox false "shoulder_grp.sy";
+setAttr -lock true -keyable false -channelBox false "shoulder_grp.sz";
+setAttr -lock true -keyable false -channelBox false "shoulder_grp.v";
+
+setAttr "torso_ik_curve.inheritsTransform" 0;
+select -r torso_1_skin hip_skin shoulder_skin torso_IkHandle torso_ik_curve ;
+group -n "doNotTouch_grp"; 
+xform -os -piv 0 0 0;
+
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.tx";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.ty";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.tz";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.rx";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.ry";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.rz";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.sx";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.sy";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.sz";
+setAttr -lock true -keyable false -channelBox false "doNotTouch_grp.v";
+
+select -r body_anim ;
+group -n "anim_grp"; 
+xform -os -piv 0 0 0;
+
+parent anim_grp doNotTouch_grp all_anim;
+
+string $c[]=`circle -n "torso_1_circle" -c 0 0 0 -nr 0 1 0 -sw 360 -r (1.27*$sc) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`; 
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 torso_1_circle;
+parent -add -shape torso_1_circleShape torso_1_anim;
+delete $c;
+
+string $c[]=`circle -n "torso_2_circle" -c 0 0 0 -nr 0 1 0 -sw 360 -r (1.17*$sc) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`; 
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 torso_2_circle;
+parent -add -shape torso_2_circleShape torso_2_anim;
+delete $c;
+
+select -r doNotTouch_grp;
+createDisplayLayer -name "doNotTouch_layer" -number 1 -nr;
+setAttr doNotTouch_layer.visibility 1;
+setAttr doNotTouch_layer.displayType 2; 
+setAttr doNotTouch_layer.color 3;
+
+rename "torso_1_skin" "torso_1_joint";
+rename "torso_7_skin" "torso_7_joint";
+setAttr "torso_ik_curve.v" 0;
+setAttr -lock true "torso_ik_curve.v";
+
+//////KNECK and Head
+
+float $x_neck_base[] = `xform -q -ws -piv neck_dummy`;
+float $x_neck_end[] = `xform -q -ws -piv neck_end_dummy`;
+
+$head=`curve -d 1 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -p -1 1 1  -p 1 1 1  -p 1 1 -1  -p -1 1 -1  -p -1 1 1  -p -1 -1 1  -p 1 -1 1  -p 1 -1 -1  -p -1 -1 -1  -p -1 -1 1  -p -1 1 1  -p -1 1 -1  -p -1 -1 -1  -p 1 -1 -1  -p 1 1 -1  -p 1 1 1  -p 1 -1 1 -n "head_anim"`;
+/*`circle -n "head_anim" -c 0 0 0 -nr 0 1 0 -sw 360 -r 1 -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+select -r head_anim.cv[7] ;
+move -r -os -wd -0.727006 0 0 ;
+
+select -r head_anim.cv[0:7] ;
+move -r -os -wd -0.393738 0 0 ;
+
+rotate -r 0 0 -90 head_anim;*/
+
+scale -r (1.6*$sc) (1.6*$sc) (1.6*$sc) head_anim;
+
+
+xform -ws -t $x_neck_end[0] $x_neck_end[1] $x_neck_end[2] head_anim;
+
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 head_anim;
+
+select -cl;
+joint -n "neck_base_skin" -p $x_neck_base[0] $x_neck_base[1] $x_neck_base[2] ;
+joint -n "neck_end_joint" -p $x_neck_end[0] $x_neck_end[1] $x_neck_end[2] ;
+joint -e -zso -oj xyz -sao yup neck_base_skin;
+
+select -r neck_base_skin;
+js_splitSelJoint 3;
+rename neck_base_skin_seg_1_joint neck_1_skin;
+rename neck_base_skin_seg_2_joint neck_2_skin;
+
+
+string $ik[]=`ikHandle -n "neck_IkHandle" -sol ikSplineSolver -sj neck_base_skin -ee neck_end_joint`;
+rename $ik[1] "neck_ik_effector";
+string $curve=`rename $ik[2] "neck_ik_curve"`;
+
+
+setAttr "neck_IkHandle.dTwistControlEnable" 1;
+setAttr neck_IkHandle.dWorldUpType 4;
+setAttr "neck_IkHandle.dWorldUpVectorY" 0;
+setAttr "neck_IkHandle.dWorldUpVectorZ" -1;
+setAttr "neck_IkHandle.dWorldUpVectorEndY" 0;
+setAttr "neck_IkHandle.dWorldUpVectorEndZ" -1;
+setAttr neck_IkHandle.dWorldUpAxis 4;
+
+connectAttr shoulder_anim.worldMatrix[0] neck_IkHandle.dWorldUpMatrix;
+connectAttr head_anim.worldMatrix[0] neck_IkHandle.dWorldUpMatrixEnd;
+
+
+float $x_neck_base[] = `xform -q -ws -piv neck_dummy`;
+float $x_neck_end[] = `xform -q -ws -piv neck_end_dummy`;
+float $x_neck_1[] = `xform -q -ws -piv neck_1_skin`;
+
+select -cl;
+joint -n "neck_curve_base_bind" -p $x_neck_base[0] $x_neck_base[1] $x_neck_base[2] ;
+joint -n "neck_curve_1_bind" -p $x_neck_1[0] $x_neck_1[1] $x_neck_1[2] ;
+joint -e -zso -oj xyz -sao yup neck_curve_base_bind;
+select -cl;
+joint -n "neck_curve_end_bind" -p $x_neck_end[0] $x_neck_end[1] $x_neck_end[2] ;
+
+select -cl;
+joint -n "head_base_skin" -p $x_neck_end[0] $x_neck_end[1] $x_neck_end[2] ;
+joint -n "head_end_skin" -p $x_neck_end[0] ($x_neck_end[1]+(1*$sc)) $x_neck_end[2] ;
+joint -e -zso -oj xyz -sao yup head_base_skin;
+
+
+skinCluster -tsb neck_curve_base_bind neck_curve_1_bind neck_curve_end_bind $curve;
+js_createStretchSpline "neck_ik_curve" 0 1 "all_anim" "globalScale";
+
+parent neck_curve_end_bind head_anim;
+parent head_base_skin head_anim;
+parent neck_curve_base_bind shoulder_anim;
+
+
+string $di=`distanceDimension  -sp $x_neck_base[0] ($x_neck_base[1]-1) $x_neck_base[2] -ep $x_neck_end[0] ($x_neck_end[1]+1) $x_neck_end[2]` ;
+rename distanceDimension1 "neck_distance";
+
+xform -ws -t $x_neck_base[0] $x_neck_base[1] $x_neck_base[2]  locator1;
+xform -ws -t $x_neck_end[0] $x_neck_end[1] $x_neck_end[2] locator2;
+rename locator1 "neck_length_base";
+rename locator2 "neck_length_end";
+string $sy=`eval("getAttr \"neck_distanceShape.distance\"")`;
+
+
+string $s=("$scale = (neck_distanceShape.distance/"+$sy+")/all_anim.globalScale;\r\nneck_curve_base_bind.scaleX=$scale*clamp(0,1,$scale);\r\nneck_curve_base_bind.scaleY=$scale*clamp(0,1,$scale);\r\nneck_curve_base_bind.scaleZ=$scale*clamp(0,1,$scale);");
+
+expression -s $s -ae 1 -uc all -n "neck_ik_curve_expr";
+
+parent neck_length_base shoulder_anim;
+parent neck_length_end head_anim;
+parent neck_base_skin shoulder_anim;
+
+setAttr "neck_ik_curve.inheritsTransform" 0;
+setAttr "neck_ik_curve.v" 0;
+setAttr -lock true "neck_ik_curve.v";
+
+float $x_neck_base[] = `xform -q -ws -piv neck_dummy`;
+float $x_neck_end[] = `xform -q -ws -piv neck_end_dummy`;
+
+select -cl;
+joint -n "neck_anim" -p $x_neck_base[0] $x_neck_base[1] $x_neck_base[2] ;
+joint -n "neck_fk_end" -p $x_neck_end[0] $x_neck_end[1] $x_neck_end[2] ;
+joint -e -oj yzx -secondaryAxisOrient zup -ch -zso neck_anim;
+setAttr "neck_anim.rotateOrder" 1;
+group -em -n "neck_anim_grp";
+xform -ws -piv $x_neck_base[0] $x_neck_base[1] $x_neck_base[2] ;
+group -em -n "neck_anim_grp_const";
+xform -ws -piv $x_neck_base[0] $x_neck_base[1] $x_neck_base[2] ;
+parent neck_anim neck_anim_grp;
+parent neck_anim_grp_const shoulder_anim;
+parentConstraint -mo -w 1 neck_anim_grp_const neck_anim_grp;
+
+parent neck_anim_grp anim_grp ;
+
+string $c[]=`circle -n "neck_1_circle" -c 0 0 0 -nr 0 1 0 -sw 360 -r (0.7*$sc) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`; 
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 neck_1_circle;
+parent -add -shape neck_1_circleShape neck_anim;
+delete $c;
+
+js_setUpMultiConstraint "head_anim" "neck_anim,shoulder_anim,body_anim,all_anim," 1 0 "t_follow" "head_anim";
+js_setUpMultiConstraint "head_anim" "neck_anim,shoulder_anim,body_anim,all_anim," 0 1 "o_follow" "head_anim";
+
+
+addAttr -e -enumName "neck:shoulder:body:all:" ".t_follow";
+addAttr -e -enumName "neck:shoulder:body:all:" ".o_follow";
+
+
+setAttr -lock true -keyable false -channelBox false "head_anim.sx";
+setAttr -lock true -keyable false -channelBox false "head_anim.sy";
+setAttr -lock true -keyable false -channelBox false "head_anim.sz";
+setAttr -lock true -keyable false -channelBox false "head_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "neck_anim.tx";
+setAttr -lock true -keyable false -channelBox false "neck_anim.ty";
+setAttr -lock true -keyable false -channelBox false "neck_anim.tz";
+setAttr -lock true -keyable false -channelBox false "neck_anim.sx";
+setAttr -lock true -keyable false -channelBox false "neck_anim.sy";
+setAttr -lock true -keyable false -channelBox false "neck_anim.sz";
+setAttr -lock true -keyable false -channelBox false "neck_anim.v";
+setAttr -keyable false -channelBox false "neck_anim.radi";
+
+
+parent head_anim_grp anim_grp;
+
+
+setAttr "neck_distance.visibility" 0;
+setAttr "neck_length_base.visibility" 0;
+setAttr "neck_length_end.visibility" 0;
+setAttr -lock true "neck_distance.v";
+setAttr -lock true "neck_length_base.v";
+setAttr -lock true "neck_length_end.v";
+setAttr "neck_IkHandle.visibility" 0;
+setAttr "torso_IkHandle.visibility" 0;
+setAttr -lock true "neck_IkHandle.v";
+setAttr -lock true "torso_IkHandle.v";
+
+select -r neck_IkHandle neck_ik_curve neck_distance ;
+group -n "neck_grp"; xform -os -piv 0 0 0;
+parent neck_grp doNotTouch_grp ;
+
+
+select -r head_anim ;
+js_pivot_create;
+select -r head_anim ;
+js_pivot_toggle -1;
+
+select -r neck_fk_end neck_base_skin torso_end_joint head_base_skin ;
+editDisplayLayerMembers -noRecurse doNotTouch_layer `ls -selection`;
+
+
+select -r neck_curve_base_bind ;
+editDisplayLayerMembers -noRecurse doNotTouch_layer `ls -selection`;
+select -cl ;
+print "\n\n**************************************\n\n Torso Rigged Successfully\n\n**************************************\n\n";
+}
+
+
+
+
+global proc hz.armRigLeft()
+{
+float $sc =`getAttr "skeleton_dummy_grp.scaleX"`;
+
+global float $rotateShoulder;
+
+
+$rotateShoulder=`getAttr l_upArm_dummy.rz`;
+
+
+setAttr "l_upArm_dummy.rotateZ" 0;
+
+if (!`objExists all_anim`)
+{
+string $main=`group -em -n "all_anim"`; 
+xform -os -piv 0 0 0 $main;
+connectAttr all_anim.scaleY all_anim.scaleX;
+connectAttr all_anim.scaleY all_anim.scaleZ;
+setAttr  -keyable false -channelBox false "all_anim.sx";
+setAttr  -keyable false -channelBox false "all_anim.sz";
+aliasAttr globalScale all_anim.scaleY;
+}
+
+	float $x_l_shoulder[]=`xform -q -ws -piv l_shoulder_dummy`;
+	float $x_l_upArm[]=`xform -q -ws -piv l_upArm_dummy`;
+	float $x_l_lowArm[]=`xform -q -ws -piv l_lowArm_dummy`;
+	float $x_l_hand[]=`xform -q -ws -piv l_hand_dummy`;
+	float $x_l_hand_end[]=`xform -q -ws -piv l_fing_middle_base_dummy`;
+	
+	
+select -cl;
+
+	joint -n "l_upArm_joint" -p $x_l_upArm[0] $x_l_upArm[1] $x_l_upArm[2] ;
+	joint -n "l_lowArm_joint" -p $x_l_lowArm[0] $x_l_lowArm[1] $x_l_lowArm[2] ;
+	joint -e -zso -oj xyz -sao yup l_upArm_joint;
+	joint -n "l_hand_joint" -p $x_l_hand[0] $x_l_hand[1] $x_l_hand[2] ;
+	joint -e -oj xyz -secondaryAxisOrient ydown -ch -zso l_lowArm_joint;
+	joint -n "l_hand_end_joint" -p $x_l_hand_end[0] $x_l_hand[1] $x_l_hand[2]  ;
+	joint -e -zso -oj xyz -sao yup l_hand_joint; 
+	
+	setAttr l_upArm_joint.rotateOrder 2;
+	
+	select -r l_upArm_joint;
+	mirrorJoint -mirrorYZ -mirrorBehavior -searchReplace "l_" "r_";
+
+select -cl;
+    joint -n "l_shoulder_skin" -p $x_l_shoulder[0] $x_l_shoulder[1] $x_l_shoulder[2] ;
+	joint -n "l_shoulder_end_joint" -p $x_l_upArm[0] $x_l_upArm[1] $x_l_upArm[2] ;
+	joint -e -zso -oj xyz -sao yup l_shoulder_skin;
+	
+	setAttr l_lowArm_joint.rotateOrder 3;
+	setAttr l_hand_joint.rotateOrder 5;
+
+	
+	js_createTwistySegment "l_upArm" "l_upArm_joint" 4 0 0 1 "all_anim" "globalScale" ;
+	js_createTwistySegment "l_lowArm" "l_lowArm_joint" 4 0 0 1 "all_anim" "globalScale" ;
+	
+rename l_upArm_start_seg "l_upArm_base_skin" ;
+rename l_upArm_start_seg_1_joint "l_upArm_1_skin" ;
+rename l_upArm_start_seg_2_joint "l_upArm_2_skin" ;
+rename l_upArm_start_seg_3_joint "l_upArm_3_skin" ;
+
+rename l_lowArm_start_seg "l_lowArm_base_skin" ;
+rename l_lowArm_start_seg_1_joint "l_lowArm_1_skin" ;
+rename l_lowArm_start_seg_2_joint "l_lowArm_2_skin" ;
+rename l_lowArm_start_seg_3_joint "l_lowArm_3_skin" ;
+
+parentConstraint -mo -weight 1 l_upArm_joint l_upArm_start_ctrl;
+parentConstraint -mo -weight 1 l_lowArm_joint l_upArm_end_ctrl;
+
+
+xform -ws -t $x_l_hand[0] $x_l_hand[1] $x_l_hand[2] l_lowArm_end_ctrl;
+parent l_lowArm_grp l_upArm_end_ctrl;
+// parentConstraint -mo -weight 1 l_hand_joint l_lowArm_end_ctrl;
+
+select -r l_upArm_joint ;
+js_grepRename "l_" "l_fk_" 1;
+select -r l_upArm_joint ;
+js_grepRename "l_" "l_ik_" 1;
+
+
+string $set=`group -em -n "settings_anim"`; 
+xform -os -piv 0 0 0 $set;
+
+setAttr -lock true -keyable false -channelBox false "settings_anim.tx";
+setAttr -lock true -keyable false -channelBox false "settings_anim.ty";
+setAttr -lock true -keyable false -channelBox false "settings_anim.tz";
+setAttr -lock true -keyable false -channelBox false "settings_anim.rx";
+setAttr -lock true -keyable false -channelBox false "settings_anim.ry";
+setAttr -lock true -keyable false -channelBox false "settings_anim.rz";
+setAttr -lock true -keyable false -channelBox false "settings_anim.sx";
+setAttr -lock true -keyable false -channelBox false "settings_anim.sy";
+setAttr -lock true -keyable false -channelBox false "settings_anim.sz";
+setAttr -lock true -keyable false -channelBox false "settings_anim.v";
+
+parent settings_anim all_anim; 
+
+addAttr -ln "l_arm_state"  -at "enum" -en "fk:ik:"  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.l_arm_state;
+
+js_connectBlend l_fk_upArm_joint l_ik_upArm_joint l_upArm_joint "rotate" "settings_anim.l_arm_state";
+js_connectBlend l_fk_upArm_joint l_ik_upArm_joint l_upArm_joint "translate" "settings_anim.l_arm_state";
+
+js_connectBlend l_fk_lowArm_joint l_ik_lowArm_joint l_lowArm_joint "rotate" "settings_anim.l_arm_state";
+js_connectBlend l_fk_lowArm_joint l_ik_lowArm_joint l_lowArm_joint "translate" "settings_anim.l_arm_state";
+
+js_connectBlend l_fk_hand_joint l_ik_hand_joint l_hand_joint "rotate" "settings_anim.l_arm_state";
+js_connectBlend l_fk_hand_joint l_ik_hand_joint l_hand_joint "translate" "settings_anim.l_arm_state";
+
+
+float $csx=`getAttr l_fk_lowArm_joint.tx`;
+string $c[]=`circle -n "up_l_arm_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.4 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") l_fk_upArm_joint;
+delete $c[0];
+
+float $csx=`getAttr l_fk_hand_joint.tx`;
+string $c[]=`circle -n "low_l_arm_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.4 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") l_fk_lowArm_joint;
+delete $c[0];
+
+float $csx=`getAttr l_fk_hand_end_joint.tx`;
+string $c[]=`circle -n "hand_l_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/1.2) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.9 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") l_fk_hand_joint;
+delete $c[0];
+
+string $shldCtrl = `curve -d 3 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14  -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 -k 25 -k 26 -k 27 -k 28 -k 29  -k 30 -k 31 -k 32 -k 33 -k 34 -k 35 -k 36 -k 37 -k 38 -k 39 -k 40 -k 41 -k 42 -k 43 -k 44 -k 45 -k 46  -k 47 -k 48 -k 49 -k 50 -k 51 -k 52 -k 53 -k 54 -k 55 -k 56 -k 57 -k 58 -k 59 -p 0 1 0 -p 0 1 0 -p 0.41122 0.92387 0 -p 0.74530 0.64993 0 -p 0.92387 0.38268 0 -p 1 0 0 -p 0.92387 -0.38268 0 -p 0.70710 -0.70710 0 -p 0.38268 -0.92387 0 -p 0 -1 0 -p -0.38268 -0.92387 0 -p -0.70710 -0.70710 0 -p -0.92387 -0.38268 0 -p -1 0 0 -p -0.92387 0.38268 0 -p -0.70710 0.70710 0 -p -0.38268 0.92387 0 -p 0 1 0 -p 0 1 0 -p 0 1 0 -p 0 0.92387 -0.38268 -p 0 0.70710 -0.70710 -p 0 0.38268 -0.92387 -p 0 0 -1 -p 0 -0.38268 -0.92387 -p 0 -0.70710 -0.70710 -p 0 -0.92387 -0.38268 -p 0 -1 0 -p 0 -0.92387 0.38268 -p 0 -0.70710 0.70710 -p 0 -0.38268 0.92387 -p 0 0 1 -p 0 0.38268 0.92387 -p 0 0.70710 0.70710 -p 0 0.92387 0.38268 -p 0 1 0 -p 0 0.92387 -0.38268 -p 0 0.70710 -0.70710 -p 0 0.38268 -0.92387 -p 0 0 -1 -p 0 0 -1 -p 0 0 -1 -p 0.70710 0 -0.84205 -p 1 0 0 -p 0.70710 0 0.80017 -p 0 0 1 -p -0.70710 0 0.80803 -p -1 0 0 -p -0.72822 1.0129834521696394e-015 -0.79756 -p -2.42356e-016 -1.09511e-016 -1 -p 3.59720e-017 1.28482e-033 -1 -p 8.87676e-018 -8.28233e-032 -1 -p 0 0.38268 -0.92387 -p 0 0.70710 -0.70710 -p 0 0.92387 -0.38268 -p 0 1 0 -p 0 1 0 -p 0.41122 0.92387 0 -n "sphere#"`;
+float $x_l_upArm[]=`xform -q -ws -piv l_upArm_dummy`;
+move -r  $x_l_upArm[0] $x_l_upArm[1] $x_l_upArm[2] $shldCtrl;
+rotate -r 0 -90 0 $shldCtrl;
+scale -r ($sc*0.5) ($sc*0.5) ($sc*0.5) $shldCtrl;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $shldCtrl;
+rename $shldCtrl "l_upArm_orient";
+string $shldCtrlShp[]=`listRelatives l_upArm_orient`;
+rename $shldCtrlShp[0] "l_upArm_orientShape";
+setAttr l_upArm_orient.rotateOrder 2;
+
+parent l_upArm_joint l_upArm_orient ;
+parent l_fk_upArm_joint l_upArm_orient ;
+parent l_ik_upArm_joint l_upArm_orient ;
+parent l_upArm_grp l_upArm_orient ;
+
+select -r l_fk_upArm_joint ;
+js_setDrivenKeyLength "translate" "no";
+select -r l_fk_lowArm_joint ;
+js_setDrivenKeyLength "translate" "no";
+
+rotate -r 0 20 0 l_ik_lowArm_joint;
+joint -e -spa -ch l_ik_lowArm_joint; 
+rotate -r -a 0 0 0 l_ik_lowArm_joint;
+
+
+
+string $cu=`curve -n "l_ik_elbow_anim" -d 1 -p 0 0 -1 -p 0 0 1 -p 0 0 0 -p -1 0 0 -p 1 0 0 -p 0 0 0 -p 0 1 0 -p 0 -1 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7` ;
+float $x_l_lowArm[]=`xform -q -ws -piv l_lowArm_dummy`;
+move -r  $x_l_lowArm[0] $x_l_lowArm[1] $x_l_lowArm[2] $cu;
+scale -r  ($sc*0.65)  ($sc*0.65)  ($sc*0.65)  $cu;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $cu;
+//makeIdentity -apply true -t 0 -r 1 -s 1 -n 0 $cu;
+
+string $rs[]=`listRelatives l_ik_elbow_anim`;
+rename $rs[0] "l_ik_elbow_animShape";
+
+
+
+float $csx=`getAttr l_fk_hand_end_joint.tx`;
+$ikhand= `curve -d 1 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -p -1 1 1  -p 1 1 1  -p 1 1 -1  -p -1 1 -1  -p -1 1 1  -p -1 -1 1  -p 1 -1 1  -p 1 -1 -1  -p -1 -1 -1  -p -1 -1 1  -p -1 1 1  -p -1 1 -1  -p -1 -1 -1  -p 1 -1 -1  -p 1 1 -1  -p 1 1 1  -p 1 -1 1 -n "cube#"`;
+//cc_arrow_3_Circle();
+scale -r ($csx*0.95) ($csx*0.95) ($csx*0.95) $ikhand;
+move -r -os -wd 0 0 (-1*$csx) $ikhand;
+rotate -r -os 0 0 -90 ;
+move 0 0 0 ($ikhand+".scalePivot") ($ikhand+".rotatePivot") ;
+rotate -r -os 90 0 0 ;
+move -r  $x_l_hand[0] $x_l_hand[1] $x_l_hand[2] $ikhand;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $ikhand;
+//makeIdentity -apply true -t 0 -r 1 -s 1 -n 0 $ikhand;
+rename $ikhand "l_ik_hand_anim";
+
+
+select -r l_ik_upArm_joint ;
+select -add l_ik_hand_joint ;
+select -add l_ik_elbow_anim ;
+js_createIkStretch "all_anim.globalScale" "ikRPsolver" 0;
+xform -ws -t $x_l_lowArm[0] $x_l_lowArm[1] $x_l_lowArm[2] l_ik_elbow_anim_loc  ;
+
+
+parent l_ik_upArm_joint_distance_end l_ik_hand_anim ;
+parent l_ik_upArm_joint_distance_start l_upArm_orient ;
+
+
+
+select -r l_ik_upArm_joint_distance l_ik_lowArm_joint_toElbowDist l_ik_lowArm_joint_toEndDist ;
+group -n "l_arm_distances_grp"; xform -os -piv 0 0 0;
+setAttr "l_arm_distances_grp.visibility" 0;
+setAttr -lock true "l_arm_distances_grp.v";
+group -n "l_arm_doNotTouch_grp" ;
+
+setAttr "l_ik_upArm_joint_distance_start.visibility" 0;
+setAttr "l_ik_upArm_joint_distance_end.visibility" 0;
+setAttr "l_ik_elbow_anim_loc.visibility" 0;
+setAttr -lock true "l_ik_upArm_joint_distance_start.v";
+setAttr -lock true "l_ik_upArm_joint_distance_end.v";
+setAttr -lock true "l_ik_elbow_anim_loc.v";
+
+move -r 0 0 -0.2  l_ik_elbow_anim ;
+ikHandle -n "l_ik_hand_ikHandle" -sol ikSCsolver -sj l_ik_hand_joint -ee l_ik_hand_end_joint;
+parent l_ik_hand_ikHandle l_ik_upArm_joint_distance_end ;
+setAttr "l_ik_elbow_anim.translateZ" 0;
+setAttr l_ik_hand_anim.rotateOrder 3; //xzy 
+
+select -r l_fk_lowArm_joint ;
+duplicate -rr;
+
+parent l_fk_lowArm_joint1 l_ik_elbow_anim ;
+
+rename "l_fk_lowArm_joint1" "l_ik_elbow_low_arm_joint";
+
+delete l_ik_elbow_low_arm_joint|low_l_arm_circleShape ;
+delete l_ik_elbow_low_arm_joint|l_fk_hand_joint|l_fk_hand_end_joint ;
+rename "l_ik_elbow_low_arm_joint|l_fk_hand_joint" "l_fk_hand_elbow_anim";
+
+float $xPreserve=`getAttr l_fk_hand_elbow_anim.tx`;
+parent l_fk_hand_elbow_anim l_ik_elbow_anim ;
+reorder -relative -2 l_fk_hand_elbow_anim ;
+delete l_ik_elbow_low_arm_joint ;
+
+
+addAttr -ln "l_lowArm_state"  -at "enum" -en "fk:ik:"  |all_anim|settings_anim;
+setAttr -e -keyable true |all_anim|settings_anim.l_lowArm_state;
+
+select -r l_shoulder_skin ;
+select -add l_shoulder_end_joint ;
+js_createIkStretch "all_anim.globalScale" "ikSCsolver" 1;
+
+select -r l_upArm_orient ;
+group -n "l_arm_grp";
+xform -os -piv $x_l_upArm[0] $x_l_upArm[1] $x_l_upArm[2] ;
+
+pointConstraint -mo -weight 1 l_shoulder_end_joint l_arm_grp ;
+
+
+
+string $curv_shoulder=`curve -n "l_shoulder_anim "-d 1 -p 1 -2 0 -p 1 1 0 -p 2 1 0 -p 0 3 0 -p -2 1 0 -p -1 1 0 -p -1 -2 0 -p 1 -2 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7` ;
+select -r ($curv_shoulder+".cv[0:7]") ;
+scale -p 0 (0.5*$sc) 0 -r (0.165738*$sc) (0.165738*$sc) (0.165738*$sc) ;
+move -r -os -wd (-0.32*$sc) 0 0 ;
+xform -ws -t $x_l_upArm[0] $x_l_upArm[1] $x_l_upArm[2] $curv_shoulder;
+rotate -r 0 0 -12 $curv_shoulder;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $curv_shoulder;
+select -cl;
+
+parent l_shoulder_skin_distance_end l_shoulder_anim ;
+setAttr "l_shoulder_skin_distance_end.visibility" 0;
+setAttr -lock true "l_shoulder_skin_distance_end.v";
+
+select -r l_arm_grp ;
+select -add l_shoulder_skin ;
+select -add l_shoulder_skin_distance_start ;
+select -add l_ik_upArm_joint_distance_end ;
+select -add l_shoulder_anim;
+group -n "l_shoulder_grp"; xform -os -piv $x_l_shoulder[0] $x_l_shoulder[1] $x_l_shoulder[2] ;
+
+
+parentConstraint -mo -weight 1 shoulder_anim l_shoulder_grp ; 
+
+setAttr "l_shoulder_skin_distance_start.visibility" 0;
+setAttr -lock true "l_shoulder_skin_distance_start.v";
+
+setAttr "l_lowArm_end_ctrl_loc.visibility" 0;
+setAttr "l_shoulder_skin_distance.visibility" 0;
+setAttr "l_upArm_end_ctrl_loc.visibility" 0;
+setAttr -lock true "l_lowArm_end_ctrl_loc.v";
+setAttr -lock true "l_shoulder_skin_distance.v";
+setAttr -lock true "l_upArm_end_ctrl_loc.v";
+
+parent l_shoulder_skin_distance l_arm_doNotTouch_grp ;
+select -r l_ik_elbow_anim l_ik_hand_anim l_arm_doNotTouch_grp l_shoulder_grp ;
+group -n "l_arm_all_grp"; xform -os -piv 0 0 0;
+
+
+parent l_arm_all_grp anim_grp ;
+ 
+setAttr -lock true -keyable false -channelBox false "l_shoulder_anim.rx";
+setAttr -lock true -keyable false -channelBox false "l_shoulder_anim.ry";
+setAttr -lock true -keyable false -channelBox false "l_shoulder_anim.rz";
+setAttr -lock true -keyable false -channelBox false "l_shoulder_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_shoulder_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_shoulder_anim.sz";
+setAttr -lock true -keyable false -channelBox false "l_shoulder_anim.v";
+
+group -em -n "settings_visibility"; xform -os -piv 0 0 0;
+parent settings_visibility all_anim ;
+
+setAttr -lock true -keyable false -channelBox false "settings_visibility.tx";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.ty";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.tz";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.rx";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.ry";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.rz";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.sx";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.sy";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.sz";
+setAttr -lock true -keyable false -channelBox false "settings_visibility.v";
+
+addAttr -ln "l_fk_arm_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.l_fk_arm_vis;
+addAttr -ln "l_ik_elbow_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.l_ik_elbow_vis;
+addAttr -ln "l_fk_elbow_hand_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.l_fk_elbow_hand_vis;
+addAttr -ln "l_ik_hand_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.l_ik_hand_vis;
+
+select -r l_fk_hand_joint l_fk_lowArm_joint l_fk_upArm_joint ;
+js_grepRename "_joint" "_anim" 0;
+
+expression -n "l_armVis_expr" -s "$mode = settings_anim.l_arm_state;\r\n$ikMode = settings_anim.l_lowArm_state;\r\n\r\n$fk_arm=settings_visibility.l_fk_arm_vis;\r\n$ik_elbow=settings_visibility.l_ik_elbow_vis;\r\n$ik_hand=settings_visibility.l_ik_hand_vis;\r\n$fk_elbow_hand=settings_visibility.l_fk_elbow_hand_vis;\r\n\r\nl_upArm_orientShape.visibility=(1-$mode)+$fk_arm;\r\nl_fk_upArm_anim.visibility=(1-$mode)+$fk_arm;\r\nl_ik_elbow_anim.visibility=$mode+$ik_elbow;\r\nl_ik_hand_anim.visibility=$mode*$ikMode+$ik_hand;\r\nl_fk_hand_elbow_anim.visibility=$mode*(1-$ikMode)+$fk_elbow_hand;"  -o "" -ae 1 -uc all ;
+
+addAttr -ln "l_fk_arm_orient"  -at "enum" -en "shoulder:body:all:"  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.l_fk_arm_orient;
+
+addAttr -ln "l_ik_arm_parent"  -at "enum" -en "shoulder:body:all:"  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.l_ik_arm_parent;
+
+group -em -n "l_ik_orient_loc";
+xform -ws -t $x_l_upArm[0] $x_l_upArm[1] $x_l_upArm[2];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;
+
+group -em -n "l_fk_orient_loc";
+xform -ws -t $x_l_upArm[0] $x_l_upArm[1] $x_l_upArm[2];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;
+duplicate -rr;
+rename  "l_fk_orient_loc1"  "l_fk_orient_shoulder";
+select -r l_fk_orient_loc;
+duplicate -rr;
+rename  "l_fk_orient_loc1"  "l_fk_orient_body";
+select -r l_fk_orient_loc;
+duplicate -rr;
+rename  "l_fk_orient_loc1"  "l_fk_orient_all";
+
+orientConstraint -mo -w 1 l_fk_orient_shoulder l_fk_orient_body l_fk_orient_all l_fk_orient_loc;
+
+
+parent l_fk_orient_shoulder shoulder_anim ;
+parent l_fk_orient_body body_anim ;
+parent l_fk_orient_all all_anim ;
+parent l_fk_orient_loc l_arm_grp ;
+parent l_upArm_orient l_fk_orient_loc ;
+
+setAttr "settings_anim.l_fk_arm_orient" 0;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_shoulderW0" 1;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_bodyW1" 0;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_allW2" 0;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_allW2;
+
+setAttr "settings_anim.l_fk_arm_orient" 1;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_shoulderW0" 0;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_bodyW1" 1;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_allW2" 0;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_allW2;
+
+setAttr "settings_anim.l_fk_arm_orient" 2;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_shoulderW0" 0;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_bodyW1" 0;
+setAttr "l_fk_orient_loc_orientConstraint1.l_fk_orient_allW2" 1;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.l_fk_arm_orient l_fk_orient_loc_orientConstraint1.l_fk_orient_allW2;
+
+rename "l_upArm_orient" "l_upArm_orient_anim";
+
+
+setAttr -lock true -keyable false -channelBox false "l_upArm_orient_anim.tx";
+setAttr -lock true -keyable false -channelBox false "l_upArm_orient_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_upArm_orient_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_upArm_orient_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_upArm_orient_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_upArm_orient_anim.sz";
+setAttr -keyable false -channelBox false "l_upArm_orient_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "l_fk_upArm_anim.tx";
+setAttr -lock true -keyable false -channelBox false "l_fk_upArm_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fk_upArm_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fk_upArm_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fk_upArm_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fk_upArm_anim.sz";
+setAttr -keyable false -channelBox false "l_fk_upArm_anim.v";
+setAttr -keyable false -channelBox false "l_fk_upArm_anim.radi";
+
+setAttr -lock true -keyable false -channelBox false "l_fk_lowArm_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowArm_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowArm_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowArm_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowArm_anim.sz";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowArm_anim.v";
+setAttr -keyable false -channelBox false "l_fk_lowArm_anim.tx";
+setAttr -keyable false -channelBox false "l_fk_lowArm_anim.radi";
+
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_anim.sz";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_anim.v";
+setAttr -keyable false -channelBox false "l_fk_hand_anim.tx";
+setAttr -keyable false -channelBox false "l_fk_hand_anim.radi";
+
+setAttr -lock true -keyable false -channelBox false "l_ik_hand_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_ik_hand_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_ik_hand_anim.sz";
+setAttr -keyable false -channelBox false "l_ik_hand_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "l_ik_elbow_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_ik_elbow_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_ik_elbow_anim.sz";
+setAttr -keyable false -channelBox false "l_ik_elbow_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_elbow_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_elbow_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_elbow_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_elbow_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fk_hand_elbow_anim.sz";
+setAttr -keyable false -channelBox false "l_fk_hand_elbow_anim.v";
+setAttr -keyable false -channelBox false "l_fk_hand_elbow_anim.radi";
+
+addAttr -ln "length"  -at double  -min 0 -dv 1 |all_anim|anim_grp|l_arm_all_grp|l_ik_elbow_anim;
+setAttr -e-keyable true |all_anim|anim_grp|l_arm_all_grp|l_ik_elbow_anim.length;
+
+setAttr "l_ik_elbow_anim.length" 1;
+setDrivenKeyframe -currentDriver l_ik_elbow_anim.length l_fk_hand_elbow_anim.translateX;
+setAttr "l_ik_elbow_anim.length" 0;
+move -r -ls -wd (-1*$xPreserve) 0 0 l_fk_hand_elbow_anim;
+setDrivenKeyframe -currentDriver l_ik_elbow_anim.length l_fk_hand_elbow_anim.translateX;
+setAttr "l_ik_elbow_anim.length" 1;
+
+selectKey -clear ;
+selectKey -add -k -f 1 l_fk_hand_elbow_anim_translateX ;
+setInfinity -poi linear;
+
+setAttr l_ik_elbow_anim.rotateOrder 3;
+
+setAttr "settings_anim.l_arm_state" 1;
+setAttr "settings_anim.l_lowArm_state" 1;
+setAttr "settings_anim.l_fk_arm_orient" 0;
+
+setAttr "l_ik_upArm_joint.visibility" 0;
+setAttr -lock true "l_ik_upArm_joint.v";
+
+setAttr -keyable false -channelBox false "l_fk_hand_elbow_anim.tx";
+
+select -r l_upArm_joint l_shoulder_skin l_lowArm_start_ctrl l_upArm_start_ctrl l_lowArm_base_skin l_upArm_base_skin ;;
+editDisplayLayerMembers -noRecurse doNotTouch_layer `ls -selection`;
+
+
+
+rename "doNotTouch_grp" "back_doNotTouch_grp";
+select -r body_anim ;
+group -n "body_anim_grp"; xform -os -piv 0 0 0;
+parent back_doNotTouch_grp body_anim_grp ;
+
+select -r head_anim_target_all_anim_grp head_anim_target_all_anim_grp1 l_fk_orient_all ;
+group -n "const_grp"; xform -os -piv 0 0 0;
+parent const_grp anim_grp ;
+
+select -cl ;
+print "\n\n**************************************\n\n Left Arm Rigged Successfully\n\n**************************************\n\n";
+
+}
+ 
+
+
+
+
+
+global proc hz.armRigRight()
+{
+float $sc =`getAttr "skeleton_dummy_grp.scaleX"`;
+
+
+
+	float $x_r_shoulder[]=`xform -q -ws -piv r_shoulder_dummy`;
+	float $x_r_upArm[]=`xform -q -ws -piv r_upArm_dummy`;
+	float $x_r_lowArm[]=`xform -q -ws -piv r_lowArm_dummy`;
+	float $x_r_hand[]=`xform -q -ws -piv r_hand_dummy`;
+	float $x_r_hand_end[]=`xform -q -ws -piv r_fing_middle_base_dummy`;
+
+setAttr r_upArm_joint.rotateOrder 2;
+	
+select -cl;
+    joint -n "r_shoulder_skin" -p $x_r_shoulder[0] $x_r_shoulder[1] $x_r_shoulder[2] ;
+	joint -n "r_shoulder_end_joint" -p $x_r_upArm[0] $x_r_upArm[1] $x_r_upArm[2] ;
+	joint -e -zso -oj xyz -sao yup r_shoulder_skin;
+	
+	setAttr r_lowArm_joint.rotateOrder 3;
+	setAttr r_hand_joint.rotateOrder 5;
+	
+select -cl;
+	joint -n "r_upArm_joint_temp" -p $x_r_upArm[0] $x_r_upArm[1] $x_r_upArm[2] ;
+	joint -n "r_lowArm_joint_temp" -p $x_r_lowArm[0] $x_r_lowArm[1] $x_r_lowArm[2] ;
+	joint -e -zso -oj xyz -sao yup r_upArm_joint_temp;
+	
+	js_createTwistySegment "r_upArm" "r_upArm_joint_temp" 4 0 0 1 "all_anim" "globalScale" ;
+	delete  r_upArm_joint_temp;
+
+
+
+select -cl;
+	joint -n "r_lowArm_joint_temp" -p $x_r_lowArm[0] $x_r_lowArm[1] $x_r_lowArm[2] ;
+	joint -n "r_hand_joint_temp" -p $x_r_hand[0] $x_r_hand[1] $x_r_hand[2] ;
+	joint -e -zso -oj xyz -sao yup r_lowArm_joint_temp;
+	
+	js_createTwistySegment "r_lowArm" "r_lowArm_joint_temp" 4 0 0 1 "all_anim" "globalScale" ;
+	delete  r_lowArm_joint_temp;
+		
+select -cl;
+	
+
+rename r_upArm_start_seg "r_upArm_base_skin" ;
+rename r_upArm_start_seg_1_joint "r_upArm_1_skin" ;
+rename r_upArm_start_seg_2_joint "r_upArm_2_skin" ;
+rename r_upArm_start_seg_3_joint "r_upArm_3_skin" ;
+
+rename r_lowArm_start_seg "r_lowArm_base_skin" ;
+rename r_lowArm_start_seg_1_joint "r_lowArm_1_skin" ;
+rename r_lowArm_start_seg_2_joint "r_lowArm_2_skin" ;
+rename r_lowArm_start_seg_3_joint "r_lowArm_3_skin" ;
+
+parentConstraint -mo -weight 1 r_upArm_joint r_upArm_start_ctrl;
+parentConstraint -mo -weight 1 r_lowArm_joint r_upArm_end_ctrl;
+
+xform -ws -t $x_r_hand[0] $x_r_hand[1] $x_r_hand[2] r_lowArm_end_ctrl;
+parent r_lowArm_grp r_upArm_end_ctrl;
+//parentConstraint -mo -weight 1 r_hand_joint r_lowArm_end_ctrl;
+
+select -r r_upArm_joint ;
+js_grepRename "r_" "r_fk_" 1;
+select -r r_upArm_joint ;
+js_grepRename "r_" "r_ik_" 1;
+
+if (!`objExists settings_anim`)
+{
+string $set=`group -em -n "settings_anim"`; 
+xform -os -piv 0 0 0 $set;
+
+setAttr -lock true -keyable false -channelBox false "settings_anim.tx";
+setAttr -lock true -keyable false -channelBox false "settings_anim.ty";
+setAttr -lock true -keyable false -channelBox false "settings_anim.tz";
+setAttr -lock true -keyable false -channelBox false "settings_anim.rx";
+setAttr -lock true -keyable false -channelBox false "settings_anim.ry";
+setAttr -lock true -keyable false -channelBox false "settings_anim.rz";
+setAttr -lock true -keyable false -channelBox false "settings_anim.sx";
+setAttr -lock true -keyable false -channelBox false "settings_anim.sy";
+setAttr -lock true -keyable false -channelBox false "settings_anim.sz";
+setAttr -lock true -keyable false -channelBox false "settings_anim.v";
+
+parent settings_anim all_anim; 
+}
+
+addAttr -ln "r_arm_state"  -at "enum" -en "fk:ik:"  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.r_arm_state;
+
+js_connectBlend r_fk_upArm_joint r_ik_upArm_joint r_upArm_joint "rotate" "settings_anim.r_arm_state";
+js_connectBlend r_fk_upArm_joint r_ik_upArm_joint r_upArm_joint "translate" "settings_anim.r_arm_state";
+
+js_connectBlend r_fk_lowArm_joint r_ik_lowArm_joint r_lowArm_joint "rotate" "settings_anim.r_arm_state";
+js_connectBlend r_fk_lowArm_joint r_ik_lowArm_joint r_lowArm_joint "translate" "settings_anim.r_arm_state";
+
+js_connectBlend r_fk_hand_joint r_ik_hand_joint r_hand_joint "rotate" "settings_anim.r_arm_state";
+js_connectBlend r_fk_hand_joint r_ik_hand_joint r_hand_joint "translate" "settings_anim.r_arm_state";
+
+
+float $csx=`getAttr r_fk_lowArm_joint.tx`;
+string $c[]=`circle -n "up_r_arm_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.4 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") r_fk_upArm_joint;
+delete $c[0];
+
+float $csx=`getAttr r_fk_hand_joint.tx`;
+string $c[]=`circle -n "low_r_arm_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.4 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") r_fk_lowArm_joint;
+delete $c[0];
+
+float $csx=`getAttr r_fk_hand_end_joint.tx`;
+string $c[]=`circle -n "hand_r_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/1.2) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.9 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") r_fk_hand_joint;
+delete $c[0];
+
+string $shldCtrl = `curve -n "sphere#" -d 3 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14  -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 -k 25 -k 26 -k 27 -k 28 -k 29  -k 30 -k 31 -k 32 -k 33 -k 34 -k 35 -k 36 -k 37 -k 38 -k 39 -k 40 -k 41 -k 42 -k 43 -k 44 -k 45 -k 46  -k 47 -k 48 -k 49 -k 50 -k 51 -k 52 -k 53 -k 54 -k 55 -k 56 -k 57 -k 58 -k 59 -p 0 1 0 -p 0 1 0 -p 0.41122 0.92387 0 -p 0.74530 0.64993 0 -p 0.92387 0.38268 0 -p 1 0 0 -p 0.92387 -0.38268 0 -p 0.70710 -0.70710 0 -p 0.38268 -0.92387 0 -p 0 -1 0 -p -0.38268 -0.92387 0 -p -0.70710 -0.70710 0 -p -0.92387 -0.38268 0 -p -1 0 0 -p -0.92387 0.38268 0 -p -0.70710 0.70710 0 -p -0.38268 0.92387 0 -p 0 1 0 -p 0 1 0 -p 0 1 0 -p 0 0.92387 -0.38268 -p 0 0.70710 -0.70710 -p 0 0.38268 -0.92387 -p 0 0 -1 -p 0 -0.38268 -0.92387 -p 0 -0.70710 -0.70710 -p 0 -0.92387 -0.38268 -p 0 -1 0 -p 0 -0.92387 0.38268 -p 0 -0.70710 0.70710 -p 0 -0.38268 0.92387 -p 0 0 1 -p 0 0.38268 0.92387 -p 0 0.70710 0.70710 -p 0 0.92387 0.38268 -p 0 1 0 -p 0 0.92387 -0.38268 -p 0 0.70710 -0.70710 -p 0 0.38268 -0.92387 -p 0 0 -1 -p 0 0 -1 -p 0 0 -1 -p 0.70710 0 -0.84205 -p 1 0 0 -p 0.70710 0 0.80017 -p 0 0 1 -p -0.70710 0 0.80803 -p -1 0 0 -p -0.72822 1.0129834521696394e-015 -0.79756 -p -2.42356e-016 -1.09511e-016 -1 -p 3.59720e-017 1.28482e-033 -1 -p 8.87676e-018 -8.28233e-032 -1 -p 0 0.38268 -0.92387 -p 0 0.70710 -0.70710 -p 0 0.92387 -0.38268 -p 0 1 0 -p 0 1 0 -p 0.41122 0.92387 0`;
+float $x_r_upArm[]=`xform -q -ws -piv r_upArm_dummy`;
+move -r  $x_r_upArm[0] $x_r_upArm[1] $x_r_upArm[2] $shldCtrl;
+rotate -r 0 -90 0 $shldCtrl;
+scale -r ($sc*0.5) ($sc*0.5) ($sc*0.5) $shldCtrl;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $shldCtrl;
+rename $shldCtrl "r_upArm_orient";
+string $shldCtrlShp[]=`listRelatives r_upArm_orient`;
+rename $shldCtrlShp[0] "r_upArm_orientShape";
+setAttr r_upArm_orient.rotateOrder 2;
+
+parent r_upArm_joint r_upArm_orient ;
+parent r_fk_upArm_joint r_upArm_orient ;
+parent r_ik_upArm_joint r_upArm_orient ;
+parent r_upArm_grp r_upArm_orient ;
+
+select -r r_fk_upArm_joint ;
+js_setDrivenKeyLength "translate" "no";
+select -r r_fk_lowArm_joint ;
+js_setDrivenKeyLength "translate" "no";
+
+rotate -r 0 20 0 r_ik_lowArm_joint;
+joint -e -spa -ch r_ik_lowArm_joint; 
+rotate -r -a 0 0 0 r_ik_lowArm_joint;
+
+
+
+string $cu=`curve -n "r_ik_elbow_anim" -d 1 -p 0 0 -1 -p 0 0 1 -p 0 0 0 -p -1 0 0 -p 1 0 0 -p 0 0 0 -p 0 1 0 -p 0 -1 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7` ;
+float $x_r_lowArm[]=`xform -q -ws -piv r_lowArm_dummy`;
+move -r  $x_r_lowArm[0] $x_r_lowArm[1] $x_r_lowArm[2] $cu;
+scale -r  ($sc*0.65)  ($sc*0.65)  ($sc*0.65)  $cu;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $cu;
+//makeIdentity -apply true -t 0 -r 1 -s 1 -n 0 $cu;
+
+string $rs[]=`listRelatives r_ik_elbow_anim`;
+rename $rs[0] "r_ik_elbow_animShape";
+
+
+
+float $csx=`getAttr r_fk_hand_end_joint.tx`;
+$ikhand = `curve -d 1 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -p -1 1 1  -p 1 1 1  -p 1 1 -1  -p -1 1 -1  -p -1 1 1  -p -1 -1 1  -p 1 -1 1  -p 1 -1 -1  -p -1 -1 -1  -p -1 -1 1  -p -1 1 1  -p -1 1 -1  -p -1 -1 -1  -p 1 -1 -1  -p 1 1 -1  -p 1 1 1  -p 1 -1 1 -n "cube#"`;
+//cc_arrow_3_Circle();
+scale -r ($csx*0.95) ($csx*0.95) ($csx*0.95) $ikhand;
+move -r -os -wd 0 0 ($csx) $ikhand;
+rotate -r -os 0 0 90 ;
+move 0 0 0 ($ikhand+".scalePivot") ($ikhand+".rotatePivot") ;
+rotate -r -os -90 0 0 ;
+move -r  $x_r_hand[0] $x_r_hand[1] $x_r_hand[2] $ikhand;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $ikhand;
+//makeIdentity -apply true -t 0 -r 1 -s 1 -n 0 $ikhand;
+rename $ikhand "r_ik_hand_anim";
+
+
+select -r r_ik_upArm_joint ;
+select -add r_ik_hand_joint ;
+select -add r_ik_elbow_anim ;
+js_createIkStretch "all_anim.globalScale" "ikRPsolver" 0;
+xform -ws -t $x_r_lowArm[0] $x_r_lowArm[1] $x_r_lowArm[2] r_ik_elbow_anim_loc  ;
+
+
+parent r_ik_upArm_joint_distance_end r_ik_hand_anim ;
+parent r_ik_upArm_joint_distance_start r_upArm_orient ;
+
+
+
+select -r r_ik_upArm_joint_distance r_ik_lowArm_joint_toElbowDist r_ik_lowArm_joint_toEndDist ;
+group -n "r_arm_distances_grp"; xform -os -piv 0 0 0;
+setAttr "r_arm_distances_grp.visibility" 0;
+setAttr -lock true "r_arm_distances_grp.v";
+group -n "r_arm_doNotTouch_grp" ;
+
+setAttr "r_ik_upArm_joint_distance_start.visibility" 0;
+setAttr "r_ik_upArm_joint_distance_end.visibility" 0;
+setAttr "r_ik_elbow_anim_loc.visibility" 0;
+setAttr -lock true "r_ik_upArm_joint_distance_start.v";
+setAttr -lock true "r_ik_upArm_joint_distance_end.v";
+setAttr -lock true "r_ik_elbow_anim_loc.v";
+
+move -r 0 0 -0.2  r_ik_elbow_anim ;
+ikHandle -n "r_ik_hand_ikHandle" -sol ikSCsolver -sj r_ik_hand_joint -ee r_ik_hand_end_joint;
+parent r_ik_hand_ikHandle r_ik_upArm_joint_distance_end ;
+setAttr "r_ik_elbow_anim.translateZ" 0;
+setAttr r_ik_hand_anim.rotateOrder 3; //xzy 
+
+select -r r_fk_lowArm_joint ;
+duplicate -rr;
+
+parent r_fk_lowArm_joint1 r_ik_elbow_anim ;
+
+rename "r_fk_lowArm_joint1" "r_ik_elbow_low_arm_joint";
+
+delete r_ik_elbow_low_arm_joint|low_r_arm_circleShape ;
+delete r_ik_elbow_low_arm_joint|r_fk_hand_joint|r_fk_hand_end_joint ;
+rename "r_ik_elbow_low_arm_joint|r_fk_hand_joint" "r_fk_hand_elbow_anim";
+
+float $xPreserve=`getAttr r_fk_hand_elbow_anim.tx`;
+parent r_fk_hand_elbow_anim r_ik_elbow_anim ;
+reorder -relative -2 r_fk_hand_elbow_anim ;
+delete r_ik_elbow_low_arm_joint ;
+
+
+addAttr -ln "r_lowArm_state"  -at "enum" -en "fk:ik:"  |all_anim|settings_anim;
+setAttr -e -keyable true |all_anim|settings_anim.r_lowArm_state;
+
+select -r r_shoulder_skin ;
+select -add r_shoulder_end_joint ;
+js_createIkStretch "all_anim.globalScale" "ikSCsolver" 1;
+
+select -r r_upArm_orient ;
+group -n "r_arm_grp";
+xform -os -piv $x_r_upArm[0] $x_r_upArm[1] $x_r_upArm[2] ;
+
+pointConstraint -mo -weight 1 r_shoulder_end_joint r_arm_grp ;
+
+///////////////////////////////////////////////////////////////////
+
+string $curv_shoulder=`curve -n "r_shoulder_anim "-d 1 -p 1 -2 0 -p 1 1 0 -p 2 1 0 -p 0 3 0 -p -2 1 0 -p -1 1 0 -p -1 -2 0 -p 1 -2 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7` ;
+select -r ($curv_shoulder+".cv[0:7]") ;
+scale -p 0 (0.5*$sc) 0 -r (0.165738*$sc) (0.165738*$sc) (0.165738*$sc) ;
+move -r -os -wd (0.32*$sc) 0 0 ;
+xform -ws -t $x_r_upArm[0] $x_r_upArm[1] $x_r_upArm[2] $curv_shoulder;
+rotate -r 0 0 12 $curv_shoulder;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $curv_shoulder;
+select -cl;
+
+parent r_shoulder_skin_distance_end r_shoulder_anim ;
+setAttr "r_shoulder_skin_distance_end.visibility" 0;
+setAttr -lock true "r_shoulder_skin_distance_end.v";
+
+select -r r_arm_grp ;
+select -add r_shoulder_skin ;
+select -add r_shoulder_skin_distance_start ;
+select -add r_ik_upArm_joint_distance_end ;
+select -add r_shoulder_anim;
+group -n "r_shoulder_grp"; xform -os -piv $x_r_shoulder[0] $x_r_shoulder[1] $x_r_shoulder[2] ;
+
+
+parentConstraint -mo -weight 1 shoulder_anim r_shoulder_grp ; 
+
+setAttr "r_shoulder_skin_distance_start.visibility" 0;
+setAttr -lock true "r_shoulder_skin_distance_start.v";
+
+setAttr "r_lowArm_end_ctrl_loc.visibility" 0;
+setAttr "r_shoulder_skin_distance.visibility" 0;
+setAttr "r_upArm_end_ctrl_loc.visibility" 0;
+setAttr -lock true "r_lowArm_end_ctrl_loc.v";
+setAttr -lock true "r_shoulder_skin_distance.v";
+setAttr -lock true "r_upArm_end_ctrl_loc.v";
+
+parent r_shoulder_skin_distance r_arm_doNotTouch_grp ;
+select -r r_ik_elbow_anim r_ik_hand_anim r_arm_doNotTouch_grp r_shoulder_grp ;
+group -n "r_arm_all_grp"; xform -os -piv 0 0 0;
+
+
+parent r_arm_all_grp anim_grp ;
+ 
+setAttr -lock true -keyable false -channelBox false "r_shoulder_anim.rx";
+setAttr -lock true -keyable false -channelBox false "r_shoulder_anim.ry";
+setAttr -lock true -keyable false -channelBox false "r_shoulder_anim.rz";
+setAttr -lock true -keyable false -channelBox false "r_shoulder_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_shoulder_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_shoulder_anim.sz";
+setAttr -lock true -keyable false -channelBox false "r_shoulder_anim.v";
+
+
+
+addAttr -ln "r_fk_arm_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.r_fk_arm_vis;
+addAttr -ln "r_ik_elbow_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.r_ik_elbow_vis;
+addAttr -ln "r_fk_elbow_hand_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.r_fk_elbow_hand_vis;
+addAttr -ln "r_ik_hand_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.r_ik_hand_vis;
+
+select -r r_fk_hand_joint r_fk_lowArm_joint r_fk_upArm_joint ;
+js_grepRename "_joint" "_anim" 0;
+
+expression -n "r_armVis_expr" -s "$mode = settings_anim.r_arm_state;\r\n$ikMode = settings_anim.r_lowArm_state;\r\n\r\n$fk_arm=settings_visibility.r_fk_arm_vis;\r\n$ik_elbow=settings_visibility.r_ik_elbow_vis;\r\n$ik_hand=settings_visibility.r_ik_hand_vis;\r\n$fk_elbow_hand=settings_visibility.r_fk_elbow_hand_vis;\r\n\r\nr_upArm_orientShape.visibility=(1-$mode)+$fk_arm;\r\nr_fk_upArm_anim.visibility=(1-$mode)+$fk_arm;\r\nr_ik_elbow_anim.visibility=$mode+$ik_elbow;\r\nr_ik_hand_anim.visibility=$mode*$ikMode+$ik_hand;\r\nr_fk_hand_elbow_anim.visibility=$mode*(1-$ikMode)+$fk_elbow_hand;"  -o "" -ae 1 -uc all ;
+
+addAttr -ln "r_fk_arm_orient"  -at "enum" -en "shoulder:body:all:"  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.r_fk_arm_orient;
+
+
+addAttr -ln "r_ik_arm_parent"  -at "enum" -en "shoulder:body:all:"  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.r_ik_arm_parent;
+
+
+
+group -em -n "r_ik_orient_loc";
+xform -ws -t $x_r_upArm[0] $x_r_upArm[1] $x_r_upArm[2];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;
+
+
+group -em -n "r_fk_orient_loc";
+xform -ws -t $x_r_upArm[0] $x_r_upArm[1] $x_r_upArm[2];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;
+duplicate -rr;
+rename  "r_fk_orient_loc1"  "r_fk_orient_shoulder";
+select -r r_fk_orient_loc;
+duplicate -rr;
+rename  "r_fk_orient_loc1"  "r_fk_orient_body";
+select -r r_fk_orient_loc;
+duplicate -rr;
+rename  "r_fk_orient_loc1"  "r_fk_orient_all";
+
+orientConstraint -mo -w 1 r_fk_orient_shoulder r_fk_orient_body r_fk_orient_all r_fk_orient_loc;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+parent r_fk_orient_shoulder shoulder_anim ;
+parent r_fk_orient_body body_anim ;
+parent r_fk_orient_all all_anim ;
+parent r_fk_orient_loc r_arm_grp ;
+parent r_upArm_orient r_fk_orient_loc ;
+
+setAttr "settings_anim.r_fk_arm_orient" 0;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_shoulderW0" 1;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_bodyW1" 0;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_allW2" 0;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_allW2;
+
+setAttr "settings_anim.r_fk_arm_orient" 1;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_shoulderW0" 0;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_bodyW1" 1;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_allW2" 0;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_allW2;
+
+setAttr "settings_anim.r_fk_arm_orient" 2;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_shoulderW0" 0;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_bodyW1" 0;
+setAttr "r_fk_orient_loc_orientConstraint1.r_fk_orient_allW2" 1;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.r_fk_arm_orient r_fk_orient_loc_orientConstraint1.r_fk_orient_allW2;
+
+rename "r_upArm_orient" "r_upArm_orient_anim";
+
+
+setAttr -lock true -keyable false -channelBox false "r_upArm_orient_anim.tx";
+setAttr -lock true -keyable false -channelBox false "r_upArm_orient_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_upArm_orient_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_upArm_orient_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_upArm_orient_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_upArm_orient_anim.sz";
+setAttr -keyable false -channelBox false "r_upArm_orient_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "r_fk_upArm_anim.tx";
+setAttr -lock true -keyable false -channelBox false "r_fk_upArm_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fk_upArm_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fk_upArm_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fk_upArm_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fk_upArm_anim.sz";
+setAttr -keyable false -channelBox false "r_fk_upArm_anim.v";
+setAttr -keyable false -channelBox false "r_fk_upArm_anim.radi";
+
+setAttr -lock true -keyable false -channelBox false "r_fk_lowArm_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowArm_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowArm_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowArm_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowArm_anim.sz";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowArm_anim.v";
+setAttr -keyable false -channelBox false "r_fk_lowArm_anim.tx";
+setAttr -keyable false -channelBox false "r_fk_lowArm_anim.radi";
+
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_anim.sz";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_anim.v";
+setAttr -keyable false -channelBox false "r_fk_hand_anim.tx";
+setAttr -keyable false -channelBox false "r_fk_hand_anim.radi";
+
+setAttr -lock true -keyable false -channelBox false "r_ik_hand_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_ik_hand_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_ik_hand_anim.sz";
+setAttr -keyable false -channelBox false "r_ik_hand_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "r_ik_elbow_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_ik_elbow_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_ik_elbow_anim.sz";
+setAttr -keyable false -channelBox false "r_ik_elbow_anim.v";
+
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_elbow_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_elbow_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_elbow_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_elbow_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fk_hand_elbow_anim.sz";
+setAttr -keyable false -channelBox false "r_fk_hand_elbow_anim.v";
+setAttr -keyable false -channelBox false "r_fk_hand_elbow_anim.radi";
+
+addAttr -ln "length"  -at double  -min 0 -dv 1 |all_anim|anim_grp|r_arm_all_grp|r_ik_elbow_anim;
+setAttr -e-keyable true |all_anim|anim_grp|r_arm_all_grp|r_ik_elbow_anim.length;
+
+setAttr "r_ik_elbow_anim.length" 1;
+setDrivenKeyframe -currentDriver r_ik_elbow_anim.length r_fk_hand_elbow_anim.translateX;
+setAttr "r_ik_elbow_anim.length" 0;
+move -r -ls -wd (-1*$xPreserve) 0 0 r_fk_hand_elbow_anim;
+setDrivenKeyframe -currentDriver r_ik_elbow_anim.length r_fk_hand_elbow_anim.translateX;
+setAttr "r_ik_elbow_anim.length" 1;
+
+selectKey -clear ;
+selectKey -add -k -f 1 r_fk_hand_elbow_anim_translateX ;
+setInfinity -poi linear;
+
+setAttr r_ik_elbow_anim.rotateOrder 3;
+
+setAttr "settings_anim.r_arm_state" 1;
+setAttr "settings_anim.r_lowArm_state" 1;
+setAttr "settings_anim.r_fk_arm_orient" 0;
+
+setAttr "r_ik_upArm_joint.visibility" 0;
+setAttr -lock true "r_ik_upArm_joint.v";
+
+setAttr -keyable false -channelBox false "r_fk_hand_elbow_anim.tx";
+
+select -r r_upArm_joint r_shoulder_skin r_lowArm_start_ctrl r_upArm_start_ctrl r_lowArm_base_skin r_upArm_base_skin ;;
+editDisplayLayerMembers -noRecurse doNotTouch_layer `ls -selection`;
+
+
+select -r r_fk_orient_all ;
+select -add const_grp;
+parent;
+
+select -cl ;
+print "\n\n**************************************\n\n Right Arm Rigged Successfully\n\n**************************************\n\n";
+
+}
+ 
+
+
+global proc hz.handRigLeft()
+{
+float $sc =`getAttr "skeleton_dummy_grp.scaleX"`;
+float $x_l_hand_dummy[]=`xform -q -ws -piv l_hand_dummy`;
+
+float $x_fing_pinky_base_dummy[]=`xform -q -ws -piv l_fing_pinky_base_dummy`;
+float $x_fing_pinky_1_dummy[]=`xform -q -ws -piv l_fing_pinky_1_dummy`;
+float $x_fing_pinky_2_dummy[]=`xform -q -ws -piv l_fing_pinky_2_dummy`;
+float $x_fing_pinky_3_dummy[]=`xform -q -ws -piv l_fing_pinky_3_dummy`;
+float $x_fing_pinky_4_dummy[]=`xform -q -ws -piv l_fing_pinky_4_dummy`;
+
+float $x_fing_ring_base_dummy[];
+float $x_fing_ring_1_dummy[];
+float $x_fing_ring_2_dummy[];
+float $x_fing_ring_3_dummy[];
+float $x_fing_ring_4_dummy[];
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+$x_fing_ring_base_dummy=`xform -q -ws -piv l_fing_ring_base_dummy`;
+$x_fing_ring_1_dummy=`xform -q -ws -piv l_fing_ring_1_dummy`;
+$x_fing_ring_2_dummy=`xform -q -ws -piv l_fing_ring_2_dummy`;
+$x_fing_ring_3_dummy=`xform -q -ws -piv l_fing_ring_3_dummy`;
+$x_fing_ring_4_dummy=`xform -q -ws -piv l_fing_ring_4_dummy`;
+
+
+select -cl;
+
+joint -n "l_fing_ring_1_joint" -p $x_fing_ring_base_dummy[0] $x_fing_ring_base_dummy[1] $x_fing_ring_base_dummy[2] ;
+joint -n "l_fing_ring_2_joint" -p $x_fing_ring_1_dummy[0] $x_fing_ring_1_dummy[1] $x_fing_ring_1_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_ring_1_joint;
+joint -n "l_fing_ring_3_joint" -p $x_fing_ring_4_dummy[0] $x_fing_ring_4_dummy[1] $x_fing_ring_4_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_ring_2_joint;
+
+}
+
+float $x_fing_middle_base_dummy[]=`xform -q -ws -piv l_fing_middle_base_dummy`;
+float $x_fing_middle_1_dummy[]=`xform -q -ws -piv l_fing_middle_1_dummy`;
+float $x_fing_middle_2_dummy[]=`xform -q -ws -piv l_fing_middle_2_dummy`;
+float $x_fing_middle_3_dummy[]=`xform -q -ws -piv l_fing_middle_3_dummy`;
+float $x_fing_middle_4_dummy[]=`xform -q -ws -piv l_fing_middle_4_dummy`;
+
+float $x_fing_index_base_dummy[]=`xform -q -ws -piv l_fing_index_base_dummy`;
+float $x_fing_index_1_dummy[]=`xform -q -ws -piv l_fing_index_1_dummy`;
+float $x_fing_index_2_dummy[]=`xform -q -ws -piv l_fing_index_2_dummy`;
+float $x_fing_index_3_dummy[]=`xform -q -ws -piv l_fing_index_3_dummy`;
+float $x_fing_index_4_dummy[]=`xform -q -ws -piv l_fing_index_4_dummy`;
+
+float $x_fing_thumb_base_dummy[]=`xform -q -ws -piv l_fing_thumb_base_dummy`;
+float $x_fing_thumb_1_dummy[]=`xform -q -ws -piv l_fing_thumb_1_dummy`;
+float $x_fing_thumb_2_dummy[]=`xform -q -ws -piv l_fing_thumb_2_dummy`;
+float $x_fing_thumb_3_dummy[]=`xform -q -ws -piv l_fing_thumb_3_dummy`;
+
+select -cl;
+
+joint -n "l_fing_pinky_1_joint" -p $x_fing_pinky_base_dummy[0] $x_fing_pinky_base_dummy[1] $x_fing_pinky_base_dummy[2] ;
+joint -n "l_fing_pinky_2_joint" -p $x_fing_pinky_1_dummy[0] $x_fing_pinky_1_dummy[1] $x_fing_pinky_1_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_pinky_1_joint;
+joint -n "l_fing_pinky_3_joint" -p $x_fing_pinky_4_dummy[0] $x_fing_pinky_4_dummy[1] $x_fing_pinky_4_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_pinky_2_joint;
+
+select -cl;
+
+joint -n "l_fing_middle_1_joint" -p $x_fing_middle_base_dummy[0] $x_fing_middle_base_dummy[1] $x_fing_middle_base_dummy[2] ;
+joint -n "l_fing_middle_2_joint" -p $x_fing_middle_1_dummy[0] $x_fing_middle_1_dummy[1] $x_fing_middle_1_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_middle_1_joint;
+joint -n "l_fing_middle_3_joint" -p $x_fing_middle_4_dummy[0] $x_fing_middle_4_dummy[1] $x_fing_middle_4_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_middle_2_joint;
+
+select -cl;
+
+joint -n "l_fing_index_1_joint" -p $x_fing_index_base_dummy[0] $x_fing_index_base_dummy[1] $x_fing_index_base_dummy[2] ;
+joint -n "l_fing_index_2_joint" -p $x_fing_index_1_dummy[0] $x_fing_index_1_dummy[1] $x_fing_index_1_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_index_1_joint;
+joint -n "l_fing_index_3_joint" -p $x_fing_index_4_dummy[0] $x_fing_index_4_dummy[1] $x_fing_index_4_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_index_2_joint;
+
+select -cl;
+
+joint -n "l_fing_thumb_1_joint" -p $x_fing_thumb_base_dummy[0] $x_fing_thumb_base_dummy[1] $x_fing_thumb_base_dummy[2] ;
+joint -n "l_fing_thumb_2_joint" -p $x_fing_thumb_1_dummy[0] $x_fing_thumb_1_dummy[1] $x_fing_thumb_1_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_thumb_1_joint;
+joint -n "l_fing_thumb_3_joint" -p $x_fing_thumb_3_dummy[0] $x_fing_thumb_3_dummy[1] $x_fing_thumb_3_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_thumb_2_joint;
+
+
+select -cl;
+joint -n "l_hand_base_joint" -p $x_l_hand_dummy[0] $x_l_hand_dummy[1] $x_l_hand_dummy[2] ;
+select -cl;
+
+parent l_fing_thumb_1_joint l_fing_index_1_joint l_fing_middle_1_joint l_fing_pinky_1_joint l_hand_base_joint;
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+parent  l_fing_ring_1_joint l_hand_base_joint;
+select -cl;
+joint -n "l_fing_ring_2_skin" -p $x_fing_ring_1_dummy[0] $x_fing_ring_1_dummy[1] $x_fing_ring_1_dummy[2] ;
+joint -n "l_fing_ring_3_skin" -p $x_fing_ring_2_dummy[0] $x_fing_ring_2_dummy[1] $x_fing_ring_2_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_ring_2_skin;
+joint -n "l_fing_ring_4_skin" -p $x_fing_ring_3_dummy[0] $x_fing_ring_3_dummy[1] $x_fing_ring_3_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_ring_3_skin;
+joint -n "l_fing_ring_5_skin" -p $x_fing_ring_4_dummy[0] $x_fing_ring_4_dummy[1] $x_fing_ring_4_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_ring_4_skin;
+select -cl;
+parent l_fing_ring_2_skin l_fing_ring_2_joint;
+}
+
+select -cl;
+joint -n "l_fing_pinky_2_skin" -p $x_fing_pinky_1_dummy[0] $x_fing_pinky_1_dummy[1] $x_fing_pinky_1_dummy[2] ;
+joint -n "l_fing_pinky_3_skin" -p $x_fing_pinky_2_dummy[0] $x_fing_pinky_2_dummy[1] $x_fing_pinky_2_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_pinky_2_skin;
+joint -n "l_fing_pinky_4_skin" -p $x_fing_pinky_3_dummy[0] $x_fing_pinky_3_dummy[1] $x_fing_pinky_3_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_pinky_3_skin;
+joint -n "l_fing_pinky_5_skin" -p $x_fing_pinky_4_dummy[0] $x_fing_pinky_4_dummy[1] $x_fing_pinky_4_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_pinky_4_skin;
+select -cl;
+parent l_fing_pinky_2_skin l_fing_pinky_2_joint;
+
+select -cl;
+joint -n "l_fing_index_2_skin" -p $x_fing_index_1_dummy[0] $x_fing_index_1_dummy[1] $x_fing_index_1_dummy[2] ;
+joint -n "l_fing_index_3_skin" -p $x_fing_index_2_dummy[0] $x_fing_index_2_dummy[1] $x_fing_index_2_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_index_2_skin;
+joint -n "l_fing_index_4_skin" -p $x_fing_index_3_dummy[0] $x_fing_index_3_dummy[1] $x_fing_index_3_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_index_3_skin;
+joint -n "l_fing_index_5_skin" -p $x_fing_index_4_dummy[0] $x_fing_index_4_dummy[1] $x_fing_index_4_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_index_4_skin;
+select -cl;
+parent l_fing_index_2_skin l_fing_index_2_joint;
+
+select -cl;
+joint -n "l_fing_middle_2_skin" -p $x_fing_middle_1_dummy[0] $x_fing_middle_1_dummy[1] $x_fing_middle_1_dummy[2] ;
+joint -n "l_fing_middle_3_skin" -p $x_fing_middle_2_dummy[0] $x_fing_middle_2_dummy[1] $x_fing_middle_2_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_middle_2_skin;
+joint -n "l_fing_middle_4_skin" -p $x_fing_middle_3_dummy[0] $x_fing_middle_3_dummy[1] $x_fing_middle_3_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_middle_3_skin;
+joint -n "l_fing_middle_5_skin" -p $x_fing_middle_4_dummy[0] $x_fing_middle_4_dummy[1] $x_fing_middle_4_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_fing_middle_4_skin;
+select -cl;
+parent l_fing_middle_2_skin l_fing_middle_2_joint;
+
+select -cl;
+joint -n "l_thumb_1_twist" -p $x_fing_thumb_1_dummy[0] $x_fing_thumb_1_dummy[1] $x_fing_thumb_1_dummy[2] ;
+joint -n "l_thumb_1_skin" -p ($x_fing_thumb_1_dummy[0]+.01*($x_fing_thumb_2_dummy[0]-$x_fing_thumb_1_dummy[0])) ($x_fing_thumb_1_dummy[1]+.01*($x_fing_thumb_2_dummy[1]-$x_fing_thumb_1_dummy[1])) ($x_fing_thumb_1_dummy[2]+.01*($x_fing_thumb_2_dummy[2]-$x_fing_thumb_1_dummy[2])) ;
+joint -e -zso -oj xyz -sao yup l_thumb_1_twist;
+joint -n "l_thumb_2_skin" -p $x_fing_thumb_2_dummy[0] $x_fing_thumb_2_dummy[1] $x_fing_thumb_2_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_thumb_1_skin;
+joint -n "l_thumb_3_skin" -p $x_fing_thumb_3_dummy[0] $x_fing_thumb_3_dummy[1] $x_fing_thumb_3_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_thumb_2_skin;
+select -cl;
+parent l_thumb_1_twist l_fing_thumb_2_joint;
+
+select -r l_hand_base_joint;
+mirrorJoint -mirrorYZ -mirrorBehavior -searchReplace "l_" "r_" ;
+
+
+select -cl;
+
+string $ik[]=`ikHandle -n "l_pinky_ikHandle" -sol ikSCsolver -sj l_fing_pinky_2_joint -ee l_fing_pinky_3_joint`;
+rename $ik[1] "l_pinky_effector";
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+string $ik[]=`ikHandle -n "l_ring_ikHandle" -sol ikSCsolver -sj l_fing_ring_2_joint -ee l_fing_ring_3_joint`;
+rename $ik[1] "l_ring_effector";
+}
+
+string $ik[]=`ikHandle -n "l_middle_ikHandle" -sol ikSCsolver -sj l_fing_middle_2_joint -ee l_fing_middle_3_joint`;
+rename $ik[1] "l_middle_effector";
+
+string $ik[]=`ikHandle -n "l_index_ikHandle" -sol ikSCsolver -sj l_fing_index_2_joint -ee l_fing_index_3_joint`;
+rename $ik[1] "l_index_effector";
+
+string $ik[]=`ikHandle -n "l_thumb_ikHandle" -sol ikSCsolver -sj l_fing_thumb_2_joint -ee l_fing_thumb_3_joint`;
+rename $ik[1] "l_thumb_effector";
+
+select -r l_pinky_ikHandle l_middle_ikHandle l_index_ikHandle l_thumb_ikHandle ;
+if (`objExists l_fing_ring_base_dummy`)
+{
+select -add l_ring_ikHandle;
+}
+group -n "l_fing_ikHandle_grp"; xform -os -piv $x_l_hand_dummy[0] $x_l_hand_dummy[1] $x_l_hand_dummy[2] ;
+
+
+select -cl;
+joint -n "l_hand_base_const" -p $x_l_hand_dummy[0] $x_l_hand_dummy[1] $x_l_hand_dummy[2] ;
+select -cl;
+
+parentConstraint -mo -w 1 l_hand_base_const l_hand_base_joint;
+
+group -em -n "l_fing_bend_null"; xform -os -piv $x_fing_middle_1_dummy[0] $x_fing_middle_1_dummy[1] $x_fing_middle_1_dummy[2];
+
+parent l_hand_base_const l_fing_bend_null;
+
+
+group -em -n "l_fing_side_2_null"; xform -os -piv $x_fing_index_1_dummy[0] ($x_fing_index_1_dummy[1]-0.1*$sc) ($x_fing_index_1_dummy[2]+0.1*$sc);
+group -em -n "l_fing_side_1_null"; xform -os -piv $x_fing_pinky_1_dummy[0] ($x_fing_pinky_1_dummy[1]-0.1*$sc) ($x_fing_pinky_1_dummy[2]-0.1*$sc);
+
+parent l_fing_side_2_null l_fing_side_1_null;
+parent l_fing_bend_null l_fing_side_2_null;
+
+string $l_fing_ctrl;
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+$l_fing_ctrl=fingCtrl_4();
+}
+else
+{
+$l_fing_ctrl=fingCtrl_3();
+}
+
+select -hi $l_fing_ctrl; 
+js_grepRename "g_" "l_" 0;
+
+select -r l_fingers_anim;
+scale -r (0.25*$sc) (0.25*$sc) (0.25*$sc);
+xform -ws -t $x_l_hand_dummy[0] ($x_l_hand_dummy[1]+.85*$sc) $x_l_hand_dummy[2] ;
+rotate -r 90 90 0;
+group -n "l_fingers_ctr_grp";
+xform -ws -piv $x_l_hand_dummy[0] $x_l_hand_dummy[1] $x_l_hand_dummy[2];
+
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.tx";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.rx";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.ry";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.rz";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.sz";
+setAttr -lock true -keyable false -channelBox false "l_fingers_anim.v";
+
+select -r l_fingers_anim;
+js_quickAddAttrGo "bend";
+js_quickAddAttrGo "side";
+
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver l_fingers_anim.bend l_fing_bend_null.rotateZ;
+
+setAttr "l_fingers_anim.bend" 50;
+setAttr "l_fing_bend_null.rotateZ" -80;
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver l_fingers_anim.bend l_fing_bend_null.rotateZ;
+setAttr "l_fingers_anim.bend" 0;
+
+setDrivenKeyframe -itt "linear" -ott "linear"  -currentDriver l_fingers_anim.side l_fing_side_1_null.rotateX;
+setDrivenKeyframe -itt "linear" -ott "linear"  -currentDriver l_fingers_anim.side l_fing_side_2_null.rotateX;
+
+
+setAttr "l_fingers_anim.side" 50;
+setAttr "l_fing_side_1_null.rotateX" -70;
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver l_fingers_anim.side l_fing_side_1_null.rotateX;
+setDrivenKeyframe -itt "linear" -ott "linear"  -currentDriver l_fingers_anim.side l_fing_side_2_null.rotateX;
+setAttr "l_fing_side_1_null.rotateX" 0;
+
+setAttr "l_fingers_anim.side" -50;
+setAttr "l_fing_side_2_null.rotateX" 70;
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver l_fingers_anim.side l_fing_side_1_null.rotateX;
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver l_fingers_anim.side l_fing_side_2_null.rotateX;
+setAttr "l_fing_side_2_null.rotateX" 0;
+setAttr "l_fingers_anim.side" 0;
+
+
+
+rename "l_fing_middle_1_joint" "l_fing_middle_1_skin";
+rename "l_fing_index_1_joint" "l_fing_index_1_skin";
+rename "l_fing_pinky_1_joint" "l_fing_pinky_1_skin";
+if (`objExists l_fing_ring_base_dummy`)
+{
+rename "l_fing_ring_1_joint" "l_fing_ring_1_skin";
+}
+rename "l_fing_thumb_1_joint" "l_fing_thumb_1_skin";
+rename "l_hand_base_joint" "l_hand_base_skin";
+
+
+
+
+select -cl;
+
+setAttr "l_thumb_1_twist.rotateX" 20;
+makeIdentity -apply true -t 0 -r 1 -s 0 -n 0 l_thumb_1_twist;
+setAttr "l_fing_ikHandle_grp.visibility" 0;
+setAttr -lock true "l_fing_ikHandle_grp.v";
+
+
+rename "l_fing_thumb_2_joint" "l_fing_thumb_orient_joint";
+rename "l_fing_thumb_3_joint" "l_fing_thumb_orient_joint_end";
+
+rename "l_fing_index_2_joint" "l_fing_index_orient_joint";
+rename "l_fing_index_3_joint" "l_fing_index_orient_joint_end";
+
+rename "l_fing_middle_2_joint" "l_fing_middle_orient_joint";
+rename "l_fing_middle_3_joint" "l_fing_middle_orient_joint_end";
+
+
+rename "l_fing_pinky_2_joint" "l_fing_pinky_orient_joint";
+rename "l_fing_pinky_3_joint" "l_fing_pinky_orient_joint_end";
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+rename "l_fing_ring_2_joint" "l_fing_ring_orient_joint";
+rename "l_fing_ring_3_joint" "l_fing_ring_orient_joint_end";
+
+select -hi l_fing_ring_1_skin ;
+js_rotOrderSwitchItems "xzy";
+}
+
+select -cl;
+select -hi l_fing_pinky_1_skin l_fing_middle_1_skin l_fing_index_1_skin l_thumb_1_skin ;
+js_rotOrderSwitchItems "xzy";
+
+
+select -r l_fingers_anim ;
+js_quickAddAttrGo "curl thumbCurl scrunch thumbScrunch relax  cup spread midSpread thumbSpread twist lean";
+
+
+
+rename "l_fing_pinky_1_skin" "l_fing_pinky_base_skin";
+rename "l_fing_pinky_2_skin" "l_fing_pinky_1_skin";
+rename "l_fing_pinky_3_skin" "l_fing_pinky_2_skin";
+rename "l_fing_pinky_4_skin" "l_fing_pinky_3_skin";
+
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+rename "l_fing_ring_1_skin" "l_fing_ring_base_skin";
+rename "l_fing_ring_2_skin" "l_fing_ring_1_skin";
+rename "l_fing_ring_3_skin" "l_fing_ring_2_skin";
+rename "l_fing_ring_4_skin" "l_fing_ring_3_skin";
+rename "l_finl_ring_anim" "l_ring_anim";
+}
+
+rename "l_fing_index_1_skin" "l_fing_index_base_skin";
+rename "l_fing_index_2_skin" "l_fing_index_1_skin";
+rename "l_fing_index_3_skin" "l_fing_index_2_skin";
+rename "l_fing_index_4_skin" "l_fing_index_3_skin";
+
+rename "l_fing_middle_1_skin" "l_fing_middle_base_skin";
+rename "l_fing_middle_2_skin" "l_fing_middle_1_skin";
+rename "l_fing_middle_3_skin" "l_fing_middle_2_skin";
+rename "l_fing_middle_4_skin" "l_fing_middle_3_skin";
+
+rename "l_fing_thumb_1_skin" "l_thumb_base_skin";
+
+rename "l_finl_index_anim" "l_pointer_anim";
+rename "l_finl_middle_anim" "l_middle_anim";
+rename "l_finl_pinky_anim" "l_pinky_anim";
+
+
+select -r l_pointer_anim ;
+js_quickAddAttrGo "curl scrunch spread twist lean bend_1 bend_2 bend_3 bend_4";
+
+select -r l_middle_anim ;
+js_quickAddAttrGo "curl scrunch spread twist lean bend_1 bend_2 bend_3 bend_4";
+
+select -r l_pinky_anim;
+js_quickAddAttrGo "curl scrunch spread twist lean bend_1 bend_2 bend_3 bend_4";
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+select -r l_ring_anim;
+js_quickAddAttrGo "curl scrunch spread twist lean bend_1 bend_2 bend_3 bend_4";
+}
+
+select -r l_thumb_anim;
+js_quickAddAttrGo "curl scrunch spread orbit twist bend_1 bend_2 bend_3";
+
+
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+select -hi l_fing_ring_1_skin ;
+js_addHalfJoint;
+move -r 0 (-0.1*$sc) 0;
+js_grepRename "skin_halfChild" "hc_skin" 0;
+}
+
+select -cl;	
+select -hi l_fing_pinky_1_skin l_fing_middle_1_skin l_fing_index_1_skin l_thumb_1_skin ;
+select -add l_thumb_base_skin;
+js_addHalfJoint;
+move -r 0 (-0.1*$sc) 0;
+js_grepRename "skin_halfChild" "hc_skin" 0;
+hide `ls -type transform "*_hc_skin"`;
+select -cl;	
+
+
+
+
+
+catchQuiet( wf.l_drivenKeys() );
+
+
+
+select -r l_fing_index_1_skin l_fing_index_2_skin l_fing_index_3_skin l_pointer_anim ;
+js_setDrivenKeyLength "scale" "";
+
+select -r l_fing_middle_1_skin l_fing_middle_2_skin l_fing_middle_3_skin l_middle_anim ;
+js_setDrivenKeyLength "scale" "";
+
+select -r l_fing_pinky_1_skin l_fing_pinky_2_skin l_fing_pinky_3_skin l_pinky_anim ;
+js_setDrivenKeyLength "scale" "";
+
+if (`objExists l_fing_ring_base_dummy`)
+{
+select -r l_fing_ring_1_skin l_fing_ring_2_skin l_fing_ring_3_skin l_ring_anim ;
+js_setDrivenKeyLength "scale" "";
+}
+
+select -r l_thumb_1_skin l_thumb_2_skin l_thumb_anim ;
+js_setDrivenKeyLength "scale" "";
+
+
+
+select -r l_hand_base_skin l_fing_ikHandle_grp l_fing_side_1_null l_fingers_ctr_grp ;
+group -n "l_hand_ctrl_grp"; xform -os -piv $x_l_hand_dummy[0] $x_l_hand_dummy[1] $x_l_hand_dummy[2];
+
+parentConstraint -mo -weight 1 l_hand_base_skin l_lowArm_end_ctrl;
+
+
+select -r l_ik_upArm_joint_distance_end ;
+duplicate -rr;
+delete l_ik_upArm_joint_distance_end1|l_ik_upArm_joint_handle ;
+delete l_ik_upArm_joint_distance_end1|l_ik_hand_ikHandle ;
+rename "l_ik_upArm_joint_distance_end1" "l_ik_hand_position";
+
+
+parentConstraint -mo -w 1 l_fk_hand_elbow_anim l_ik_hand_anim l_ik_hand_position ;
+expression -n "l_lowArm_ik_switch" -s "l_ik_hand_position_parentConstraint1.l_fk_hand_elbow_animW0=1-settings_anim.l_lowArm_state;\r\nl_ik_hand_position_parentConstraint1.l_ik_hand_animW1=settings_anim.l_lowArm_state;\r"  -o "" -ae 1 -uc all ;
+parent l_ik_upArm_joint_distance_end l_hand_base_skin ;
+
+group -em -n "l_hand_fk_const" ; xform -os -piv $x_l_hand_dummy[0] $x_l_hand_dummy[1] $x_l_hand_dummy[2];
+group -em -n "l_hand_ik_const" ; xform -os -piv $x_l_hand_dummy[0] $x_l_hand_dummy[1] $x_l_hand_dummy[2];
+
+parentConstraint -mo -weight 1 l_hand_fk_const l_hand_ik_const l_hand_ctrl_grp;
+parent l_hand_fk_const l_fk_hand_anim;
+parent l_hand_ik_const l_ik_hand_position;
+
+setAttr "settings_anim.l_arm_state" 1;
+setAttr "l_hand_ctrl_grp_parentConstraint1.l_hand_ik_constW1" 1;
+setAttr "l_hand_ctrl_grp_parentConstraint1.l_hand_fk_constW0" 0;
+
+setDrivenKeyframe -currentDriver settings_anim.l_arm_state l_hand_ctrl_grp_parentConstraint1.l_hand_fk_constW0;
+setDrivenKeyframe -currentDriver settings_anim.l_arm_state l_hand_ctrl_grp_parentConstraint1.l_hand_ik_constW1;
+
+setAttr "settings_anim.l_arm_state" 0;
+setAttr "l_hand_ctrl_grp_parentConstraint1.l_hand_fk_constW0" 1;
+setAttr "l_hand_ctrl_grp_parentConstraint1.l_hand_ik_constW1" 0;
+
+setDrivenKeyframe -currentDriver settings_anim.l_arm_state l_hand_ctrl_grp_parentConstraint1.l_hand_fk_constW0;
+setDrivenKeyframe -currentDriver settings_anim.l_arm_state l_hand_ctrl_grp_parentConstraint1.l_hand_ik_constW1;
+
+setAttr "settings_anim.l_arm_state" 1;
+parent l_hand_ctrl_grp anim_grp ;
+
+select -r l_hand_base_skin ;
+editDisplayLayerMembers -noRecurse doNotTouch_layer `ls -selection`;
+
+rename "l_hand_ctrl_grp" "l_hand_anim_grp";
+
+select -r l_hand_base_skin l_fing_ikHandle_grp l_fing_side_1_null ;
+group -n "l_hand_doNotTouch"; xform -os -piv 0 0 0;
+
+
+
+select -cl ;
+
+print "\n\n**************************************\n\n Left Hand Rigged Successfully\n\n**************************************\n\n";
+
+}
+ 
+
+
+
+global proc hz.handRigRight()
+{
+ 
+ float $sc =`getAttr "skeleton_dummy_grp.scaleX"`;
+
+float $x_r_hand_dummy[]=`xform -q -ws -piv r_hand_dummy`;
+
+float $x_fing_pinky_base_dummy[]=`xform -q -ws -piv r_fing_pinky_base_dummy`;
+float $x_fing_pinky_1_dummy[]=`xform -q -ws -piv r_fing_pinky_1_dummy`;
+float $x_fing_pinky_2_dummy[]=`xform -q -ws -piv r_fing_pinky_2_dummy`;
+float $x_fing_pinky_3_dummy[]=`xform -q -ws -piv r_fing_pinky_3_dummy`;
+float $x_fing_pinky_4_dummy[]=`xform -q -ws -piv r_fing_pinky_4_dummy`;
+
+float $x_fing_ring_base_dummy[];
+float $x_fing_ring_1_dummy[];
+float $x_fing_ring_2_dummy[];
+float $x_fing_ring_3_dummy[];
+float $x_fing_ring_4_dummy[];
+
+if (`objExists r_fing_ring_base_dummy`)
+{
+$x_fing_ring_base_dummy=`xform -q -ws -piv r_fing_ring_base_dummy`;
+$x_fing_ring_1_dummy=`xform -q -ws -piv r_fing_ring_1_dummy`;
+$x_fing_ring_2_dummy=`xform -q -ws -piv r_fing_ring_2_dummy`;
+$x_fing_ring_3_dummy=`xform -q -ws -piv r_fing_ring_3_dummy`;
+$x_fing_ring_4_dummy=`xform -q -ws -piv r_fing_ring_4_dummy`;
+
+
+select -cl;
+
+}
+
+float $x_fing_middle_base_dummy[]=`xform -q -ws -piv r_fing_middle_base_dummy`;
+float $x_fing_middle_1_dummy[]=`xform -q -ws -piv r_fing_middle_1_dummy`;
+float $x_fing_middle_2_dummy[]=`xform -q -ws -piv r_fing_middle_2_dummy`;
+float $x_fing_middle_3_dummy[]=`xform -q -ws -piv r_fing_middle_3_dummy`;
+float $x_fing_middle_4_dummy[]=`xform -q -ws -piv r_fing_middle_4_dummy`;
+
+float $x_fing_index_base_dummy[]=`xform -q -ws -piv r_fing_index_base_dummy`;
+float $x_fing_index_1_dummy[]=`xform -q -ws -piv r_fing_index_1_dummy`;
+float $x_fing_index_2_dummy[]=`xform -q -ws -piv r_fing_index_2_dummy`;
+float $x_fing_index_3_dummy[]=`xform -q -ws -piv r_fing_index_3_dummy`;
+float $x_fing_index_4_dummy[]=`xform -q -ws -piv r_fing_index_4_dummy`;
+
+float $x_fing_thumb_base_dummy[]=`xform -q -ws -piv r_fing_thumb_base_dummy`;
+float $x_fing_thumb_1_dummy[]=`xform -q -ws -piv r_fing_thumb_1_dummy`;
+float $x_fing_thumb_2_dummy[]=`xform -q -ws -piv r_fing_thumb_2_dummy`;
+float $x_fing_thumb_3_dummy[]=`xform -q -ws -piv r_fing_thumb_3_dummy`;
+
+
+select -cl;
+
+string $ik[]=`ikHandle -n "r_pinky_ikHandle" -sol ikSCsolver -sj r_fing_pinky_2_joint -ee r_fing_pinky_3_joint`;
+rename $ik[1] "r_pinky_effector";
+
+if (`objExists r_fing_ring_base_dummy`)
+{
+string $ik[]=`ikHandle -n "r_ring_ikHandle" -sol ikSCsolver -sj r_fing_ring_2_joint -ee r_fing_ring_3_joint`;
+rename $ik[1] "r_ring_effector";
+}
+string $ik[]=`ikHandle -n "r_middle_ikHandle" -sol ikSCsolver -sj r_fing_middle_2_joint -ee r_fing_middle_3_joint`;
+rename $ik[1] "r_middle_effector";
+
+string $ik[]=`ikHandle -n "r_index_ikHandle" -sol ikSCsolver -sj r_fing_index_2_joint -ee r_fing_index_3_joint`;
+rename $ik[1] "r_index_effector";
+
+string $ik[]=`ikHandle -n "r_thumb_ikHandle" -sol ikSCsolver -sj r_fing_thumb_2_joint -ee r_fing_thumb_3_joint`;
+rename $ik[1] "r_thumb_effector";
+
+select -r r_pinky_ikHandle r_middle_ikHandle r_index_ikHandle r_thumb_ikHandle ;
+if (`objExists r_fing_ring_base_dummy`)
+{
+select -add r_ring_ikHandle;
+}
+
+group -n "r_fing_ikHandle_grp"; xform -os -piv $x_r_hand_dummy[0] $x_r_hand_dummy[1] $x_r_hand_dummy[2] ;
+
+
+select -cl;
+joint -n "r_hand_base_const" -p $x_r_hand_dummy[0] $x_r_hand_dummy[1] $x_r_hand_dummy[2] ;
+select -cl;
+
+parentConstraint -mo -w 1 r_hand_base_const r_hand_base_joint;
+
+group -em -n "r_fing_bend_null"; xform -os -piv $x_fing_middle_1_dummy[0] $x_fing_middle_1_dummy[1] $x_fing_middle_1_dummy[2];
+
+parent r_hand_base_const r_fing_bend_null;
+
+
+group -em -n "r_fing_side_2_null"; xform -os -piv $x_fing_index_1_dummy[0] ($x_fing_index_1_dummy[1]-0.1*$sc) ($x_fing_index_1_dummy[2]+0.1*$sc);
+group -em -n "r_fing_side_1_null"; xform -os -piv $x_fing_pinky_1_dummy[0] ($x_fing_pinky_1_dummy[1]-0.1*$sc) ($x_fing_pinky_1_dummy[2]-0.1*$sc);
+
+parent r_fing_side_2_null r_fing_side_1_null;
+parent r_fing_bend_null r_fing_side_2_null;
+
+string $r_fing_ctrl;
+
+if (`objExists r_fing_ring_base_dummy`)
+{
+$r_fing_ctrl=fingCtrl_4();
+}
+else
+{
+$r_fing_ctrl=fingCtrl_3();
+}
+select -hi $r_fing_ctrl; 
+js_grepRename "g_" "r_" 0;
+
+select -r r_fingers_anim;
+scale -r (0.25*$sc) (0.25*$sc) (0.25*$sc);
+xform -ws -t $x_r_hand_dummy[0] ($x_r_hand_dummy[1]+.85*$sc) $x_r_hand_dummy[2] ;
+rotate -r 90 90 0;
+group -n "r_fingers_ctr_grp";
+xform -ws -piv $x_r_hand_dummy[0] $x_r_hand_dummy[1] $x_r_hand_dummy[2];
+
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.tx";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.rx";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.ry";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.rz";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.sz";
+setAttr -lock true -keyable false -channelBox false "r_fingers_anim.v";
+
+select -r r_fingers_anim;
+js_quickAddAttrGo "bend";
+js_quickAddAttrGo "side";
+
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver r_fingers_anim.bend r_fing_bend_null.rotateZ;
+
+setAttr "r_fingers_anim.bend" 50;
+setAttr "r_fing_bend_null.rotateZ" 80;
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver r_fingers_anim.bend r_fing_bend_null.rotateZ;
+setAttr "r_fingers_anim.bend" 0;
+
+setDrivenKeyframe -itt "linear" -ott "linear"  -currentDriver r_fingers_anim.side r_fing_side_1_null.rotateX;
+setDrivenKeyframe -itt "linear" -ott "linear"  -currentDriver r_fingers_anim.side r_fing_side_2_null.rotateX;
+
+
+setAttr "r_fingers_anim.side" 50;
+setAttr "r_fing_side_1_null.rotateX" -70;
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver r_fingers_anim.side r_fing_side_1_null.rotateX;
+setDrivenKeyframe -itt "linear" -ott "linear"  -currentDriver r_fingers_anim.side r_fing_side_2_null.rotateX;
+setAttr "r_fing_side_1_null.rotateX" 0;
+
+setAttr "r_fingers_anim.side" -50;
+setAttr "r_fing_side_2_null.rotateX" 70;
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver r_fingers_anim.side r_fing_side_1_null.rotateX;
+setDrivenKeyframe -itt "linear" -ott "linear" -currentDriver r_fingers_anim.side r_fing_side_2_null.rotateX;
+setAttr "r_fing_side_2_null.rotateX" 0;
+setAttr "r_fingers_anim.side" 0;
+
+
+
+rename "r_fing_middle_1_joint" "r_fing_middle_1_skin";
+rename "r_fing_index_1_joint" "r_fing_index_1_skin";
+rename "r_fing_pinky_1_joint" "r_fing_pinky_1_skin";
+if (`objExists r_fing_ring_base_dummy`)
+{
+rename "r_fing_ring_1_joint" "r_fing_ring_1_skin";
+}
+rename "r_fing_thumb_1_joint" "r_fing_thumb_1_skin";
+rename "r_hand_base_joint" "r_hand_base_skin";
+
+
+
+
+select -cl;
+
+setAttr "r_thumb_1_twist.rotateX" 20;
+makeIdentity -apply true -t 0 -r 1 -s 0 -n 0 r_thumb_1_twist;
+setAttr "r_fing_ikHandle_grp.visibility" 0;
+setAttr -lock true "r_fing_ikHandle_grp.v";
+
+
+rename "r_fing_thumb_2_joint" "r_fing_thumb_orient_joint";
+rename "r_fing_thumb_3_joint" "r_fing_thumb_orient_joint_end";
+
+rename "r_fing_index_2_joint" "r_fing_index_orient_joint";
+rename "r_fing_index_3_joint" "r_fing_index_orient_joint_end";
+
+rename "r_fing_middle_2_joint" "r_fing_middle_orient_joint";
+rename "r_fing_middle_3_joint" "r_fing_middle_orient_joint_end";
+
+rename "r_fing_pinky_2_joint" "r_fing_pinky_orient_joint";
+rename "r_fing_pinky_3_joint" "r_fing_pinky_orient_joint_end";
+
+if (`objExists r_fing_ring_base_dummy`)
+{
+rename "r_fing_ring_2_joint" "r_fing_ring_orient_joint";
+rename "r_fing_ring_3_joint" "r_fing_ring_orient_joint_end";
+
+select -hi r_fing_ring_1_skin ;
+js_rotOrderSwitchItems "xzy";
+}
+
+select -cl;
+
+select -hi r_fing_pinky_1_skin r_fing_middle_1_skin r_fing_index_1_skin r_thumb_1_skin ;
+js_rotOrderSwitchItems "xzy";
+
+
+select -r r_fingers_anim ;
+js_quickAddAttrGo "curl thumbCurl scrunch thumbScrunch relax  cup spread midSpread thumbSpread twist lean";
+
+
+
+rename "r_fing_pinky_1_skin" "r_fing_pinky_base_skin";
+rename "r_fing_pinky_2_skin" "r_fing_pinky_1_skin";
+rename "r_fing_pinky_3_skin" "r_fing_pinky_2_skin";
+rename "r_fing_pinky_4_skin" "r_fing_pinky_3_skin";
+
+if (`objExists r_fing_ring_base_dummy`)
+{
+rename "r_fing_ring_1_skin" "r_fing_ring_base_skin";
+rename "r_fing_ring_2_skin" "r_fing_ring_1_skin";
+rename "r_fing_ring_3_skin" "r_fing_ring_2_skin";
+rename "r_fing_ring_4_skin" "r_fing_ring_3_skin";
+rename "r_finr_ring_anim" "r_ring_anim";
+}
+rename "r_fing_index_1_skin" "r_fing_index_base_skin";
+rename "r_fing_index_2_skin" "r_fing_index_1_skin";
+rename "r_fing_index_3_skin" "r_fing_index_2_skin";
+rename "r_fing_index_4_skin" "r_fing_index_3_skin";
+
+rename "r_fing_middle_1_skin" "r_fing_middle_base_skin";
+rename "r_fing_middle_2_skin" "r_fing_middle_1_skin";
+rename "r_fing_middle_3_skin" "r_fing_middle_2_skin";
+rename "r_fing_middle_4_skin" "r_fing_middle_3_skin";
+
+rename "r_fing_thumb_1_skin" "r_thumb_base_skin";
+
+rename "r_finr_index_anim" "r_pointer_anim";
+rename "r_finr_middle_anim" "r_middle_anim";
+rename "r_finr_pinky_anim" "r_pinky_anim";
+
+
+select -r r_pointer_anim ;
+js_quickAddAttrGo "curl scrunch spread twist lean bend_1 bend_2 bend_3 bend_4";
+
+select -r r_middle_anim ;
+js_quickAddAttrGo "curl scrunch spread twist lean bend_1 bend_2 bend_3 bend_4";
+
+select -r r_pinky_anim;
+js_quickAddAttrGo "curl scrunch spread twist lean bend_1 bend_2 bend_3 bend_4";
+
+if (`objExists r_fing_ring_base_dummy`)
+{
+select -r r_ring_anim;
+js_quickAddAttrGo "curl scrunch spread twist lean bend_1 bend_2 bend_3 bend_4";
+}
+select -r r_thumb_anim;
+js_quickAddAttrGo "curl scrunch spread orbit twist bend_1 bend_2 bend_3";
+
+if (`objExists r_fing_ring_base_dummy`)
+{
+select -hi r_fing_ring_1_skin ;
+js_addHalfJoint;
+move -r 0 (-0.1*$sc) 0;
+js_grepRename "skin_halfChild" "hc_skin" 0;
+}
+select -cl;	
+select -hi r_fing_pinky_1_skin r_fing_middle_1_skin r_fing_index_1_skin r_thumb_1_skin ;
+select -add r_thumb_base_skin;
+js_addHalfJoint;
+move -r 0 (-0.1*$sc) 0;
+js_grepRename "skin_halfChild" "hc_skin" 0;
+hide `ls -type transform "*_hc_skin"`;
+select -cl;	
+
+
+
+
+
+catchQuiet (wf.r_drivenKeys());
+
+
+
+select -r r_fing_index_1_skin r_fing_index_2_skin r_fing_index_3_skin r_pointer_anim ;
+js_setDrivenKeyLength "scale" "";
+
+select -r r_fing_middle_1_skin r_fing_middle_2_skin r_fing_middle_3_skin r_middle_anim ;
+js_setDrivenKeyLength "scale" "";
+
+select -r r_fing_pinky_1_skin r_fing_pinky_2_skin r_fing_pinky_3_skin r_pinky_anim ;
+js_setDrivenKeyLength "scale" "";
+if (`objExists r_fing_ring_base_dummy`)
+{
+select -r r_fing_ring_1_skin r_fing_ring_2_skin r_fing_ring_3_skin r_ring_anim ;
+js_setDrivenKeyLength "scale" "";
+}
+
+select -r r_thumb_1_skin r_thumb_2_skin r_thumb_anim ;
+js_setDrivenKeyLength "scale" "";
+
+
+
+select -r r_hand_base_skin r_fing_ikHandle_grp r_fing_side_1_null r_fingers_ctr_grp ;
+group -n "r_hand_ctrl_grp"; xform -os -piv $x_r_hand_dummy[0] $x_r_hand_dummy[1] $x_r_hand_dummy[2];
+
+parentConstraint -mo -weight 1 r_hand_base_skin r_lowArm_end_ctrl;
+
+
+select -r r_ik_upArm_joint_distance_end ;
+duplicate -rr;
+delete r_ik_upArm_joint_distance_end1|r_ik_upArm_joint_handle ;
+delete r_ik_upArm_joint_distance_end1|r_ik_hand_ikHandle ;
+rename "r_ik_upArm_joint_distance_end1" "r_ik_hand_position";
+
+
+parentConstraint -mo -w 1 r_fk_hand_elbow_anim r_ik_hand_anim r_ik_hand_position ;
+expression -n "r_lowArm_ik_switch" -s "r_ik_hand_position_parentConstraint1.r_fk_hand_elbow_animW0=1-settings_anim.r_lowArm_state;\r\nr_ik_hand_position_parentConstraint1.r_ik_hand_animW1=settings_anim.r_lowArm_state;\r"  -o "" -ae 1 -uc all ;
+parent r_ik_upArm_joint_distance_end r_hand_base_skin ;
+
+group -em -n "r_hand_fk_const" ; xform -os -piv $x_r_hand_dummy[0] $x_r_hand_dummy[1] $x_r_hand_dummy[2];
+group -em -n "r_hand_ik_const" ; xform -os -piv $x_r_hand_dummy[0] $x_r_hand_dummy[1] $x_r_hand_dummy[2];
+
+parentConstraint -mo -weight 1 r_hand_fk_const r_hand_ik_const r_hand_ctrl_grp;
+parent r_hand_fk_const r_fk_hand_anim;
+parent r_hand_ik_const r_ik_hand_position;
+
+setAttr "settings_anim.r_arm_state" 1;
+setAttr "r_hand_ctrl_grp_parentConstraint1.r_hand_ik_constW1" 1;
+setAttr "r_hand_ctrl_grp_parentConstraint1.r_hand_fk_constW0" 0;
+
+setDrivenKeyframe -currentDriver settings_anim.r_arm_state r_hand_ctrl_grp_parentConstraint1.r_hand_fk_constW0;
+setDrivenKeyframe -currentDriver settings_anim.r_arm_state r_hand_ctrl_grp_parentConstraint1.r_hand_ik_constW1;
+
+setAttr "settings_anim.r_arm_state" 0;
+setAttr "r_hand_ctrl_grp_parentConstraint1.r_hand_fk_constW0" 1;
+setAttr "r_hand_ctrl_grp_parentConstraint1.r_hand_ik_constW1" 0;
+
+setDrivenKeyframe -currentDriver settings_anim.r_arm_state r_hand_ctrl_grp_parentConstraint1.r_hand_fk_constW0;
+setDrivenKeyframe -currentDriver settings_anim.r_arm_state r_hand_ctrl_grp_parentConstraint1.r_hand_ik_constW1;
+
+setAttr "settings_anim.r_arm_state" 1;
+parent r_hand_ctrl_grp anim_grp ;
+
+select -r r_hand_base_skin ;
+editDisplayLayerMembers -noRecurse doNotTouch_layer `ls -selection`;
+
+rename "r_hand_ctrl_grp" "r_hand_anim_grp";
+
+select -r r_hand_base_skin r_fing_ikHandle_grp r_fing_side_1_null ;
+group -n "r_hand_doNotTouch"; xform -os -piv 0 0 0;
+
+
+
+
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.tx";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.ty";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.tz";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.rx";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.ry";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.rz";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.sx";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.sy";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.sz";
+setAttr -lock true -keyable false -channelBox false "l_fingers_ctr_grp.v";
+
+
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.tx";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.ty";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.tz";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.rx";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.ry";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.rz";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.sx";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.sy";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.sz";
+setAttr -lock true -keyable false -channelBox false "r_fingers_ctr_grp.v";
+
+
+select -cl ;
+print "\n\n**************************************\n\n Right Hand Rigged Successfully\n\n**************************************\n\n";
+}
+
+
+
+
+
+
+
+////////// dummy
+
+
+
+global proc hz.legRigLeft()
+
+{
+float $sc =`getAttr "skeleton_dummy_grp.scaleX"`;
+
+float $x_l_upLeg_dummy[] = `xform -q -ws -piv l_upLeg_dummy`;
+float $x_l_lowLeg_dummy[] = `xform -q -ws -piv l_lowLeg_dummy`;
+float $x_l_foot_dummy[] = `xform -q -ws -piv l_foot_dummy`;
+float $x_l_toe_dummy[] = `xform -q -ws -piv l_toe_dummy`;
+float $x_l_toe_end_dummy[] = `xform -q -ws -piv l_toe_end_dummy`;
+
+
+select -cl  ;
+joint -n "l_upLeg_joint" -p $x_l_upLeg_dummy[0] $x_l_upLeg_dummy[1] $x_l_upLeg_dummy[2] ;
+joint -n "l_lowLeg_joint" -p $x_l_lowLeg_dummy[0] $x_l_lowLeg_dummy[1] $x_l_lowLeg_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_upLeg_joint;
+joint -n "l_foot_joint" -p $x_l_foot_dummy[0] $x_l_foot_dummy[1] $x_l_foot_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_lowLeg_joint;
+joint -n "l_toe_joint" -p $x_l_toe_dummy[0] $x_l_toe_dummy[1] $x_l_toe_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_foot_joint;
+joint -n "l_toeEnd_joint" -p $x_l_toe_end_dummy[0] $x_l_toe_end_dummy[1] $x_l_toe_end_dummy[2] ;
+joint -e -zso -oj xyz -sao yup l_toe_joint;
+
+//select -r l_upLeg_joint ;
+//mirrorJoint -mirrorYZ -mirrorBehavior -searchReplace "l_" "r_";
+
+select -r l_upLeg_joint ;
+js_grepRename "l_" "l_fk_" 1;
+select -r l_upLeg_joint ;
+js_grepRename "l_" "l_ik_" 1;
+select -r l_upLeg_joint ;
+js_grepRename "l_" "l_noFlip_" 1;
+select -r l_upLeg_joint ;
+js_grepRename "l_" "l_pv_" 1;
+
+addAttr -ln "l_leg_state"  -at "enum" -en "fk:ik:"  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.l_leg_state;
+
+js_connectBlend l_fk_upLeg_joint l_ik_upLeg_joint l_upLeg_joint "rotate" "settings_anim.l_leg_state";
+
+js_connectBlend l_fk_lowLeg_joint l_ik_lowLeg_joint l_lowLeg_joint "rotate" "settings_anim.l_leg_state";
+js_connectBlend l_fk_lowLeg_joint l_ik_lowLeg_joint l_lowLeg_joint "translate" "settings_anim.l_leg_state";
+
+js_connectBlend l_fk_foot_joint l_ik_foot_joint l_foot_joint "rotate" "settings_anim.l_leg_state";
+js_connectBlend l_fk_foot_joint l_ik_foot_joint l_foot_joint "translate" "settings_anim.l_leg_state";
+
+js_connectBlend l_fk_toe_joint l_ik_toe_joint l_toe_joint "rotate" "settings_anim.l_leg_state";
+
+
+
+
+float $csx=`getAttr l_fk_lowLeg_joint.tx`;
+string $c[]=`circle -n "up_l_upLeg_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.4 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") l_fk_upLeg_joint;
+delete $c[0];
+
+float $csx=`getAttr l_fk_foot_joint.tx`;
+string $c[]=`circle -n "up_l_lowLeg_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.4 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") l_fk_lowLeg_joint;
+delete $c[0];
+
+float $csx=`getAttr l_fk_toe_joint.tx`;
+string $c[]=`circle -n "up_l_foot_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.7 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") l_fk_foot_joint;
+delete $c[0];
+
+float $csx=`getAttr l_fk_toeEnd_joint.tx`;
+string $c[]=`circle -n "up_l_toe_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.8 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") l_fk_toe_joint;
+delete $c[0];
+
+
+select -r l_fk_upLeg_joint l_fk_lowLeg_joint l_fk_foot_joint  l_fk_toe_joint  ;
+js_grepRename "_joint" "_anim" 0;
+
+select -r l_fk_upLeg_anim ;
+js_setDrivenKeyLength "translate" "no";
+select -r l_fk_lowLeg_anim ;
+js_setDrivenKeyLength "translate" "no";
+select -r l_fk_foot_anim ;
+js_setDrivenKeyLength "translate" "no";
+select -r l_fk_toe_anim ;
+js_setDrivenKeyLength "translate" "no";
+
+
+
+string $ik[]=`ikHandle -n "l_foot_ikHandle" -sol ikSCsolver -sj l_ik_foot_joint -ee l_ik_toe_joint`;
+rename $ik[1] "l_foot_effector";
+
+
+string $ik[]=`ikHandle -n "l_toe_ikHandle" -sol ikSCsolver -sj l_ik_toe_joint -ee l_ik_toeEnd_joint`;
+rename $ik[1] "l_toe_effector";
+
+
+string $footCtr = `curve -d 1 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -p -1 1 1  -p 1 1 1  -p 1 1 -1  -p -1 1 -1  -p -1 1 1  -p -1 -1 1  -p 1 -1 1  -p 1 -1 -1  -p -1 -1 -1  -p -1 -1 1  -p -1 1 1  -p -1 1 -1  -p -1 -1 -1  -p 1 -1 -1  -p 1 1 -1  -p 1 1 1  -p 1 -1 1  -n "l_foot_anim"`;
+string $cShape[] = `pickWalk -d down`;
+rename $cShape[0] ($footCtr + "Shape");
+select $footCtr;
+//xform -ws -t $x_l_foot_dummy[0] 0 $x_l_foot_dummy[2];
+xform -ws -t $x_l_toe_dummy[0] $x_l_toe_dummy[1] $x_l_toe_dummy[2];
+scale -r (0.4*$sc) (0.4*$sc) (0.4*$sc) ;
+xform -ws -piv $x_l_foot_dummy[0] $x_l_foot_dummy[1] $x_l_foot_dummy[2];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 l_foot_anim;
+
+float $x_l_heelPiv_dummy[] = `xform -q -ws -piv l_heelPiv_dummy`;
+group -em -n "l_heelPiv";
+xform -ws -piv $x_l_heelPiv_dummy[0] $x_l_heelPiv_dummy[1] $x_l_heelPiv_dummy[2];
+
+float $x_l_toePiv_dummy[] = `xform -q -ws -piv l_toePiv_dummy`;
+group -em -n "l_toePiv";
+xform -ws -piv $x_l_toePiv_dummy[0] $x_l_toePiv_dummy[1] $x_l_toePiv_dummy[2];
+
+float $x_l_footOutsidePiv_dummy[] = `xform -q -ws -piv l_footOutsidePiv_dummy`;
+group -em -n "l_footOutsidePiv";
+xform -ws -piv $x_l_footOutsidePiv_dummy[0] $x_l_footOutsidePiv_dummy[1] $x_l_footOutsidePiv_dummy[2];
+
+float $x_l_footInsidePiv_dummy[] = `xform -q -ws -piv l_footInsidePiv_dummy`;
+group -em -n "l_footInsidePiv";
+xform -ws -piv $x_l_footInsidePiv_dummy[0] $x_l_footInsidePiv_dummy[1] $x_l_footInsidePiv_dummy[2];
+
+group -em -n "l_ballPiv";
+xform -ws -piv $x_l_toe_dummy[0] $x_l_toe_dummy[1] $x_l_toe_dummy[2];
+
+group -em -n "l_toeWigglePiv";
+xform -ws -piv $x_l_toe_dummy[0] $x_l_toe_dummy[1] $x_l_toe_dummy[2];
+
+parent l_heelPiv l_foot_anim ;
+parent l_ballPiv l_footInsidePiv ;
+parent l_toePiv l_heelPiv ;
+parent l_footInsidePiv l_footOutsidePiv;
+parent l_footOutsidePiv l_toePiv ;
+parent l_toeWigglePiv l_footInsidePiv ;
+
+
+
+parent l_foot_ikHandle l_footInsidePiv ;
+parent l_toe_ikHandle l_toeWigglePiv ;
+
+
+select -r l_foot_anim ;
+js_quickAddAttrGo "roll toeLift toeStraight lean side toeSpin toeWiggle kneeSpin";
+
+setAttr l_toePiv.rotateOrder 5;
+
+setAttr "l_foot_anim.toeLift" 45;
+setAttr "l_foot_anim.toeStraight" 75;
+
+
+delete l_pv_toe_joint ;
+delete l_noFlip_toe_joint ;
+
+addAttr -ln "l_leg_kneeVis"  -at bool  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.l_leg_kneeVis;
+
+js_connectBlend l_noFlip_upLeg_joint l_pv_upLeg_joint l_ik_upLeg_joint "rotate" "settings_anim.l_leg_kneeVis";
+
+js_connectBlend l_noFlip_lowLeg_joint l_pv_lowLeg_joint l_ik_lowLeg_joint "rotate" "settings_anim.l_leg_kneeVis";
+js_connectBlend l_noFlip_lowLeg_joint l_pv_lowLeg_joint l_ik_lowLeg_joint "translate" "settings_anim.l_leg_kneeVis";
+
+js_connectBlend l_noFlip_foot_joint l_pv_foot_joint l_ik_foot_joint "translate" "settings_anim.l_leg_kneeVis";
+
+
+select -r l_noFlip_upLeg_joint ;
+select -add l_noFlip_foot_joint ;
+js_createIkStretch "all_anim.globalScale" "ikRPsolver" 0;
+
+rename "l_noFlip_upLeg_joint_l_noFlip_lowLeg_joint_loc" "l_noFlip_knee";
+
+
+/////////// RIGHT WILL CHANGE HERE
+xform -ws -t ($x_l_foot_dummy[0]-7*$sc) $x_l_foot_dummy[1] $x_l_foot_dummy[2] l_noFlip_knee;
+setAttr "l_noFlip_upLeg_joint_handle.twist" -90;
+/////////////
+
+
+select -r l_noFlip_knee ;
+group -n "l_noFlip_knee_grp"; xform -os -piv $x_l_foot_dummy[0] $x_l_foot_dummy[1] $x_l_foot_dummy[2];
+
+parent l_noFlip_knee_grp l_noFlip_upLeg_joint_distance_end l_ballPiv ;
+expression -n "l_foot_expr" -s "$roll = l_foot_anim.roll;\r\n$toeLift = l_foot_anim.toeLift;\r\n$toeStraight = l_foot_anim.toeStraight;\r\n$lean = l_foot_anim.lean;\r\n$side = l_foot_anim.side;\r\n$spin = l_foot_anim.toeSpin;\r\n$wiggle = l_foot_anim.toeWiggle;\r\n$kneeSpin = l_foot_anim.kneeSpin;\r\n\r\nl_heelPiv.rotateX = min($roll,0);\r\nl_ballPiv.rotateX = (linstep(0,$toeLift,$roll)) * (1-(linstep($toeLift,$toeStraight,$roll))) * $roll;\r\nl_toePiv.rotateX = linstep($toeLift, $toeStraight, $roll) * $roll;\r\nl_ballPiv.rotateZ = $lean;\r\nl_footOutsidePiv.rotateZ = min($side,0);\r\nl_footInsidePiv.rotateZ = max(0,$side);\r\nl_toePiv.rotateY = $spin;\r\nl_toeWigglePiv.rotateX = $wiggle;\r\nl_noFlip_knee_grp.rotateY = $kneeSpin;\r"  -o "" -ae 1 -uc all ;
+
+addAttr -ln "upLegLength"  -at double  -min 0 -dv 1 |l_foot_anim;
+setAttr -e-keyable true |l_foot_anim.upLegLength;
+addAttr -ln "lowLegLength"  -at double  -min 0 -dv 1 |l_foot_anim;
+setAttr -e-keyable true |l_foot_anim.lowLegLength;
+
+
+shadingNode -asUtility multiplyDivide -n "l_noFlipLength_Mult";
+connectAttr -f l_noFlip_lowLeg_joint_elbowBlend.output l_noFlipLength_Mult.input1X;
+connectAttr -f l_foot_anim.upLegLength l_noFlipLength_Mult.input2X;
+connectAttr -f l_noFlipLength_Mult.outputX l_noFlip_lowLeg_joint.translateX;
+
+connectAttr -f l_noFlip_foot_joint_elbowBlend.output l_noFlipLength_Mult.input1Y;
+connectAttr -f l_foot_anim.lowLegLength l_noFlipLength_Mult.input2Y;
+connectAttr -f l_noFlipLength_Mult.outputY l_noFlip_foot_joint.translateX;
+
+
+
+
+
+string $cu=`curve -n "l_knee_anim" -d 1 -p 0 0 -1 -p 0 0 1 -p 0 0 0 -p -1 0 0 -p 1 0 0 -p 0 0 0 -p 0 1 0 -p 0 -1 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7` ;
+move -r  $x_l_lowLeg_dummy[0] $x_l_lowLeg_dummy[1] ($x_l_lowLeg_dummy[2]+2*$sc) $cu;
+scale -r  ($sc*0.45)  ($sc*0.45)  ($sc*0.45)  $cu;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $cu;
+
+select -r l_pv_upLeg_joint ;
+select -add l_pv_foot_joint ;
+select -add l_knee_anim ;
+js_createIkStretch "all_anim.globalScale" "ikRPsolver" 0;
+
+xform -ws -t $x_l_lowLeg_dummy[0] $x_l_lowLeg_dummy[1] ($x_l_lowLeg_dummy[2]+2*$sc) l_knee_anim_loc;
+parent l_pv_upLeg_joint_distance_end l_ballPiv ;
+
+
+
+setAttr l_foot_anim.rotateOrder 2;
+
+addAttr -ln "l_fk_leg_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.l_fk_leg_vis;
+addAttr -ln "l_ik_foot_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.l_ik_foot_vis;
+addAttr -ln "l_ik_knee_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.l_ik_knee_vis;
+
+
+
+select -r l_knee_anim ;
+select -add l_foot_anim ;
+group -n "l_leg_ik_grp"; xform -os -piv 0 0 0;
+
+
+expression -n "l_legVis_expr"-s "$mode = settings_anim.l_leg_state;\r\n$knee  = settings_anim.l_leg_kneeVis;\r\n\r\n// get the settings\r\n$l_fk_leg_vis = settings_visibility.l_fk_leg_vis;\r\n$l_ik_foot_vis = settings_visibility.l_ik_foot_vis;\r\n$l_ik_knee_vis = settings_visibility.l_ik_knee_vis;\r\n\r\nl_foot_anim.visibility = $mode + $l_ik_foot_vis;\r\nl_knee_anim.visibility = ($mode * $knee) + $l_ik_knee_vis;\r\nl_fk_upLeg_anim.visibility = (1-$mode) + $l_fk_leg_vis;"  -o "" -ae 1 -uc all ;
+
+setAttr "l_noFlip_upLeg_joint_distance_end.visibility" 0;
+setAttr "l_noFlip_upLeg_joint_distance_start.visibility" 0;
+setAttr "l_pv_upLeg_joint_distance_start.visibility" 0;
+setAttr "l_knee_anim_loc.visibility" 0;
+setAttr "l_pv_upLeg_joint_distance_end.visibility" 0;
+setAttr -lock true "l_noFlip_upLeg_joint_distance_end.v";
+setAttr -lock true "l_noFlip_upLeg_joint_distance_start.v";
+setAttr -lock true "l_pv_upLeg_joint_distance_start.v";
+setAttr -lock true "l_knee_anim_loc.v";
+setAttr -lock true "l_pv_upLeg_joint_distance_end.v";
+
+
+
+
+setAttr -lock true -keyable false -channelBox false "l_fk_toe_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fk_upLeg_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowLeg_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fk_foot_anim.ty";
+setAttr -lock true -keyable false -channelBox false "l_fk_toe_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fk_upLeg_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowLeg_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fk_foot_anim.tz";
+setAttr -lock true -keyable false -channelBox false "l_fk_toe_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fk_upLeg_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowLeg_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fk_foot_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_fk_toe_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fk_upLeg_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowLeg_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fk_foot_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_fk_toe_anim.sz";
+setAttr -lock true -keyable false -channelBox false "l_fk_upLeg_anim.sz";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowLeg_anim.sz";
+setAttr -lock true -keyable false -channelBox false "l_fk_foot_anim.sz";
+setAttr -lock true -keyable false -channelBox false "l_fk_toe_anim.v";
+setAttr -lock true -keyable false -channelBox false "l_fk_upLeg_anim.v";
+setAttr -lock true -keyable false -channelBox false "l_fk_lowLeg_anim.v";
+setAttr -lock true -keyable false -channelBox false "l_fk_foot_anim.v";
+setAttr -lock true -keyable false -channelBox false "l_fk_upLeg_anim.tx";
+
+
+setAttr -keyable false -channelBox false "l_fk_lowLeg_anim.tx";
+setAttr -keyable false -channelBox false "l_fk_toe_anim.tx";
+setAttr -keyable false -channelBox false "l_fk_foot_anim.tx";
+setAttr -keyable false -channelBox false "l_fk_toe_anim.radi";
+setAttr -keyable false -channelBox false "l_fk_upLeg_anim.radi";
+setAttr -keyable false -channelBox false "l_fk_lowLeg_anim.radi";
+setAttr -keyable false -channelBox false "l_fk_foot_anim.radi";
+
+setAttr -lock true -keyable false -channelBox false "l_foot_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_foot_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_foot_anim.sz";
+setAttr -keyable false -channelBox false "l_foot_anim.v";
+
+setAttr "l_toe_ikHandle.visibility" 0;
+setAttr "l_foot_ikHandle.visibility" 0;
+setAttr -lock true "l_toe_ikHandle.v";
+setAttr -lock true "l_foot_ikHandle.v";
+
+setAttr "l_ik_upLeg_joint.visibility" 0;
+setAttr "l_pv_upLeg_joint.visibility" 0;
+setAttr "l_noFlip_upLeg_joint.visibility" 0;
+setAttr -lock true "l_ik_upLeg_joint.v";
+setAttr -lock true "l_pv_upLeg_joint.v";
+setAttr -lock true "l_noFlip_upLeg_joint.v";
+
+setAttr -lock true -keyable false -channelBox false "l_knee_anim.rx";
+setAttr -lock true -keyable false -channelBox false "l_knee_anim.ry";
+setAttr -lock true -keyable false -channelBox false "l_knee_anim.rz";
+setAttr -lock true -keyable false -channelBox false "l_knee_anim.sx";
+setAttr -lock true -keyable false -channelBox false "l_knee_anim.sy";
+setAttr -lock true -keyable false -channelBox false "l_knee_anim.sz";
+setAttr -keyable false -channelBox false "l_knee_anim.v";
+setAttr "l_noFlip_knee.visibility" 0;
+setAttr -lock true "l_noFlip_knee.v";
+
+setAttr "settings_anim.l_leg_state" 1;
+setAttr "settings_anim.l_leg_kneeVis" 0;
+
+select -r l_upLeg_joint l_fk_upLeg_anim l_ik_upLeg_joint l_noFlip_upLeg_joint l_pv_upLeg_joint l_noFlip_upLeg_joint_distance_start l_noFlip_upLeg_joint_distance l_noFlip_lowLeg_joint_toElbowDist l_noFlip_lowLeg_joint_toEndDist l_pv_upLeg_joint_distance_start l_pv_upLeg_joint_distance l_pv_lowLeg_joint_toElbowDist l_pv_lowLeg_joint_toEndDist l_leg_ik_grp ;
+group -n "l_leg_grp"; xform -os -piv 0 0 0;
+
+select -r l_upLeg_joint l_fk_upLeg_anim l_ik_upLeg_joint l_noFlip_upLeg_joint l_pv_upLeg_joint l_noFlip_upLeg_joint_distance_start l_pv_upLeg_joint_distance_start ;
+group -n "l_leg_ctrl_grp"; xform -os -piv 0 0 0;
+
+select -r l_noFlip_upLeg_joint_distance l_noFlip_lowLeg_joint_toElbowDist l_noFlip_lowLeg_joint_toEndDist l_pv_upLeg_joint_distance l_pv_lowLeg_joint_toElbowDist l_pv_lowLeg_joint_toEndDist ;
+group -n "l_leg_doNotTouch"; xform -os -piv 0 0 0;
+
+parent l_leg_grp anim_grp ;
+
+xform -ws -piv $x_l_upLeg_dummy[0] $x_l_upLeg_dummy[1] $x_l_upLeg_dummy[2] l_leg_ctrl_grp;
+
+group -em -n "l_leg_ctrl_const";
+xform -ws -piv $x_l_upLeg_dummy[0] $x_l_upLeg_dummy[1] $x_l_upLeg_dummy[2] l_leg_ctrl_const;
+
+
+parentConstraint -mo -weight 1 l_leg_ctrl_const l_leg_ctrl_grp ;
+
+parent l_leg_ctrl_const hip_anim;
+
+setAttr "l_leg_doNotTouch.visibility" 0;
+setAttr -lock true "l_leg_doNotTouch.v";
+
+
+select -r l_upLeg_joint l_lowLeg_joint l_foot_joint l_toe_joint l_toeEnd_joint ;
+js_grepRename "_joint" "_skin" 0;
+
+select -r l_upLeg_skin ;
+editDisplayLayerMembers -noRecurse doNotTouch_layer `ls -selection`;
+
+
+
+select -cl;
+}
+
+global proc hz.legRigRight()
+{
+
+float $sc =`getAttr "skeleton_dummy_grp.scaleX"`;
+
+float $x_r_upLeg_dummy[] = `xform -q -ws -piv r_upLeg_dummy`;
+float $x_r_lowLeg_dummy[] = `xform -q -ws -piv r_lowLeg_dummy`;
+float $x_r_foot_dummy[] = `xform -q -ws -piv r_foot_dummy`;
+float $x_r_toe_dummy[] = `xform -q -ws -piv r_toe_dummy`;
+float $x_r_toe_end_dummy[] = `xform -q -ws -piv r_toe_end_dummy`;
+
+
+select -cl  ;
+joint -n "r_upLeg_joint" -p $x_r_upLeg_dummy[0] $x_r_upLeg_dummy[1] $x_r_upLeg_dummy[2] ;
+joint -n "r_lowLeg_joint" -p $x_r_lowLeg_dummy[0] $x_r_lowLeg_dummy[1] $x_r_lowLeg_dummy[2] ;
+joint -e -zso -oj xyz -sao yup r_upLeg_joint;
+joint -n "r_foot_joint" -p $x_r_foot_dummy[0] $x_r_foot_dummy[1] $x_r_foot_dummy[2] ;
+joint -e -zso -oj xyz -sao yup r_lowLeg_joint;
+joint -n "r_toe_joint" -p $x_r_toe_dummy[0] $x_r_toe_dummy[1] $x_r_toe_dummy[2] ;
+joint -e -zso -oj xyz -sao yup r_foot_joint;
+joint -n "r_toeEnd_joint" -p $x_r_toe_end_dummy[0] $x_r_toe_end_dummy[1] $x_r_toe_end_dummy[2] ;
+joint -e -zso -oj xyz -sao yup r_toe_joint;
+
+select -r r_upLeg_joint ;
+js_grepRename "r_" "r_fk_" 1;
+select -r r_upLeg_joint ;
+js_grepRename "r_" "r_ik_" 1;
+select -r r_upLeg_joint ;
+js_grepRename "r_" "r_noFlip_" 1;
+select -r r_upLeg_joint ;
+js_grepRename "r_" "r_pv_" 1;
+
+addAttr -ln "r_leg_state"  -at "enum" -en "fk:ik:"  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.r_leg_state;
+
+js_connectBlend r_fk_upLeg_joint r_ik_upLeg_joint r_upLeg_joint "rotate" "settings_anim.r_leg_state";
+
+js_connectBlend r_fk_lowLeg_joint r_ik_lowLeg_joint r_lowLeg_joint "rotate" "settings_anim.r_leg_state";
+js_connectBlend r_fk_lowLeg_joint r_ik_lowLeg_joint r_lowLeg_joint "translate" "settings_anim.r_leg_state";
+
+js_connectBlend r_fk_foot_joint r_ik_foot_joint r_foot_joint "rotate" "settings_anim.r_leg_state";
+js_connectBlend r_fk_foot_joint r_ik_foot_joint r_foot_joint "translate" "settings_anim.r_leg_state";
+
+js_connectBlend r_fk_toe_joint r_ik_toe_joint r_toe_joint "rotate" "settings_anim.r_leg_state";
+
+
+
+
+float $csx=`getAttr r_fk_lowLeg_joint.tx`;
+string $c[]=`circle -n "up_r_upLeg_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.4 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") r_fk_upLeg_joint;
+delete $c[0];
+
+float $csx=`getAttr r_fk_foot_joint.tx`;
+string $c[]=`circle -n "up_r_lowLeg_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.4 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") r_fk_lowLeg_joint;
+delete $c[0];
+
+float $csx=`getAttr r_fk_toe_joint.tx`;
+string $c[]=`circle -n "up_r_foot_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.7 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") r_fk_foot_joint;
+delete $c[0];
+
+float $csx=`getAttr r_fk_toeEnd_joint.tx`;
+string $c[]=`circle -n "up_r_toe_circle" -c 0 0 0 -nr 0 0 1 -sw 360 -r ($csx/2.1) -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`;
+move -r -os -wd ($csx/2) 0 0 $c[0];
+move 0 0 0 ($c[0]+".scalePivot") ($c[0]+".rotatePivot") ;
+//scale -r 1 0.8 1 $c[0];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c[0];
+parent -add -shape ($c[0]+"Shape") r_fk_toe_joint;
+delete $c[0];
+
+
+select -r r_fk_upLeg_joint r_fk_lowLeg_joint r_fk_foot_joint  r_fk_toe_joint  ;
+js_grepRename "_joint" "_anim" 0;
+
+select -r r_fk_upLeg_anim ;
+js_setDrivenKeyLength "translate" "no";
+select -r r_fk_lowLeg_anim ;
+js_setDrivenKeyLength "translate" "no";
+select -r r_fk_foot_anim ;
+js_setDrivenKeyLength "translate" "no";
+select -r r_fk_toe_anim ;
+js_setDrivenKeyLength "translate" "no";
+
+
+
+string $ik[]=`ikHandle -n "r_foot_ikHandle" -sol ikSCsolver -sj r_ik_foot_joint -ee r_ik_toe_joint`;
+rename $ik[1] "r_foot_effector";
+
+
+string $ik[]=`ikHandle -n "r_toe_ikHandle" -sol ikSCsolver -sj r_ik_toe_joint -ee r_ik_toeEnd_joint`;
+rename $ik[1] "r_toe_effector";
+
+
+
+string $footCtr = `curve -d 1 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -p -1 1 1  -p 1 1 1  -p 1 1 -1  -p -1 1 -1  -p -1 1 1  -p -1 -1 1  -p 1 -1 1  -p 1 -1 -1  -p -1 -1 -1  -p -1 -1 1  -p -1 1 1  -p -1 1 -1  -p -1 -1 -1  -p 1 -1 -1  -p 1 1 -1  -p 1 1 1  -p 1 -1 1  -n "r_foot_anim"`;
+string $cShape[] = `pickWalk -d down`;
+rename $cShape[0] ($footCtr + "Shape");
+select $footCtr;
+//xform -ws -t $x_r_foot_dummy[0] 0 $x_r_foot_dummy[2];
+xform -ws -t $x_r_toe_dummy[0] $x_r_toe_dummy[1] $x_r_toe_dummy[2];
+scale -r (0.4*$sc) (0.4*$sc) (0.4*$sc) ;
+xform -ws -piv $x_r_foot_dummy[0] $x_r_foot_dummy[1] $x_r_foot_dummy[2];
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 r_foot_anim;
+
+float $x_r_heelPiv_dummy[] = `xform -q -ws -piv r_heelPiv_dummy`;
+group -em -n "r_heelPiv";
+xform -ws -piv $x_r_heelPiv_dummy[0] $x_r_heelPiv_dummy[1] $x_r_heelPiv_dummy[2];
+
+float $x_r_toePiv_dummy[] = `xform -q -ws -piv r_toePiv_dummy`;
+group -em -n "r_toePiv";
+xform -ws -piv $x_r_toePiv_dummy[0] $x_r_toePiv_dummy[1] $x_r_toePiv_dummy[2];
+
+float $x_r_footOutsidePiv_dummy[] = `xform -q -ws -piv r_footOutsidePiv_dummy`;
+group -em -n "r_footOutsidePiv";
+xform -ws -piv $x_r_footOutsidePiv_dummy[0] $x_r_footOutsidePiv_dummy[1] $x_r_footOutsidePiv_dummy[2];
+
+float $x_r_footInsidePiv_dummy[] = `xform -q -ws -piv r_footInsidePiv_dummy`;
+group -em -n "r_footInsidePiv";
+xform -ws -piv $x_r_footInsidePiv_dummy[0] $x_r_footInsidePiv_dummy[1] $x_r_footInsidePiv_dummy[2];
+
+group -em -n "r_ballPiv";
+xform -ws -piv $x_r_toe_dummy[0] $x_r_toe_dummy[1] $x_r_toe_dummy[2];
+
+group -em -n "r_toeWigglePiv";
+xform -ws -piv $x_r_toe_dummy[0] $x_r_toe_dummy[1] $x_r_toe_dummy[2];
+
+parent r_heelPiv r_foot_anim ;
+parent r_ballPiv r_footInsidePiv ;
+parent r_toePiv r_heelPiv ;
+parent r_footInsidePiv r_footOutsidePiv;
+parent r_footOutsidePiv r_toePiv ;
+parent r_toeWigglePiv r_footInsidePiv ;
+
+
+
+parent r_foot_ikHandle r_footInsidePiv ;
+parent r_toe_ikHandle r_toeWigglePiv ;
+
+
+select -r r_foot_anim ;
+js_quickAddAttrGo "roll toeLift toeStraight lean side toeSpin toeWiggle kneeSpin";
+
+setAttr r_toePiv.rotateOrder 5;
+
+setAttr "r_foot_anim.toeLift" 45;
+setAttr "r_foot_anim.toeStraight" 75;
+
+
+delete r_pv_toe_joint ;
+delete r_noFlip_toe_joint ;
+
+addAttr -ln "r_leg_kneeVis"  -at bool  |all_anim|settings_anim;
+setAttr -e-keyable true |all_anim|settings_anim.r_leg_kneeVis;
+
+js_connectBlend r_noFlip_upLeg_joint r_pv_upLeg_joint r_ik_upLeg_joint "rotate" "settings_anim.r_leg_kneeVis";
+
+js_connectBlend r_noFlip_lowLeg_joint r_pv_lowLeg_joint r_ik_lowLeg_joint "rotate" "settings_anim.r_leg_kneeVis";
+js_connectBlend r_noFlip_lowLeg_joint r_pv_lowLeg_joint r_ik_lowLeg_joint "translate" "settings_anim.r_leg_kneeVis";
+
+js_connectBlend r_noFlip_foot_joint r_pv_foot_joint r_ik_foot_joint "translate" "settings_anim.r_leg_kneeVis";
+
+
+select -r r_noFlip_upLeg_joint ;
+select -add r_noFlip_foot_joint ;
+js_createIkStretch "all_anim.globalScale" "ikRPsolver" 0;
+
+rename "r_noFlip_upLeg_joint_r_noFlip_lowLeg_joint_loc" "r_noFlip_knee";
+
+
+/////////// RIGHT WILL CHANGE HERE
+xform -ws -t ($x_r_foot_dummy[0]+7*$sc) $x_r_foot_dummy[1] $x_r_foot_dummy[2] r_noFlip_knee;
+setAttr "r_noFlip_upLeg_joint_handle.twist" 90;
+/////////////
+
+
+select -r r_noFlip_knee ;
+group -n "r_noFlip_knee_grp"; xform -os -piv $x_r_foot_dummy[0] $x_r_foot_dummy[1] $x_r_foot_dummy[2];
+
+parent r_noFlip_knee_grp r_noFlip_upLeg_joint_distance_end r_ballPiv ;
+expression -n "r_foot_expr" -s "$roll = r_foot_anim.roll;\r\n$toeLift = r_foot_anim.toeLift;\r\n$toeStraight = r_foot_anim.toeStraight;\r\n$lean = r_foot_anim.lean * -1;\r\n$side = r_foot_anim.side * -1;\r\n$spin = r_foot_anim.toeSpin * -1;\r\n$wiggle = r_foot_anim.toeWiggle;\r\n$kneeSpin = r_foot_anim.kneeSpin * -1;\r\n\r\nr_heelPiv.rotateX = min($roll,0);\r\nr_ballPiv.rotateX = (linstep(0,$toeLift,$roll)) * (1-(linstep($toeLift,$toeStraight,$roll))) * $roll;\r\nr_toePiv.rotateX = linstep($toeLift, $toeStraight, $roll) * $roll;\r\nr_ballPiv.rotateZ = $lean;\r\nr_footOutsidePiv.rotateZ = max($side,0);\r\nr_footInsidePiv.rotateZ = min(0,$side);\r\nr_toePiv.rotateY = $spin;\r\nr_toeWigglePiv.rotateX = $wiggle;\r\nr_noFlip_knee_grp.rotateY = $kneeSpin;\r"  -o "" -ae 1 -uc all;
+
+addAttr -ln "upLegLength"  -at double  -min 0 -dv 1 |r_foot_anim;
+setAttr -e-keyable true |r_foot_anim.upLegLength;
+addAttr -ln "lowLegLength"  -at double  -min 0 -dv 1 |r_foot_anim;
+setAttr -e-keyable true |r_foot_anim.lowLegLength;
+
+
+shadingNode -asUtility multiplyDivide -n "r_noFlipLength_Mult";
+connectAttr -f r_noFlip_lowLeg_joint_elbowBlend.output r_noFlipLength_Mult.input1X;
+connectAttr -f r_foot_anim.upLegLength r_noFlipLength_Mult.input2X;
+connectAttr -f r_noFlipLength_Mult.outputX r_noFlip_lowLeg_joint.translateX;
+
+connectAttr -f r_noFlip_foot_joint_elbowBlend.output r_noFlipLength_Mult.input1Y;
+connectAttr -f r_foot_anim.lowLegLength r_noFlipLength_Mult.input2Y;
+connectAttr -f r_noFlipLength_Mult.outputY r_noFlip_foot_joint.translateX;
+
+
+
+
+
+string $cu=`curve -n "r_knee_anim" -d 1 -p 0 0 -1 -p 0 0 1 -p 0 0 0 -p -1 0 0 -p 1 0 0 -p 0 0 0 -p 0 1 0 -p 0 -1 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7` ;
+move -r  $x_r_lowLeg_dummy[0] $x_r_lowLeg_dummy[1] ($x_r_lowLeg_dummy[2]+2*$sc) $cu;
+scale -r  ($sc*0.45)  ($sc*0.45)  ($sc*0.45)  $cu;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $cu;
+
+select -r r_pv_upLeg_joint ;
+select -add r_pv_foot_joint ;
+select -add r_knee_anim ;
+js_createIkStretch "all_anim.globalScale" "ikRPsolver" 0;
+
+xform -ws -t $x_r_lowLeg_dummy[0] $x_r_lowLeg_dummy[1] ($x_r_lowLeg_dummy[2]+2*$sc) r_knee_anim_loc;
+parent r_pv_upLeg_joint_distance_end r_ballPiv ;
+
+
+
+setAttr r_foot_anim.rotateOrder 2;
+
+addAttr -ln "r_fk_leg_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.r_fk_leg_vis;
+addAttr -ln "r_ik_foot_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.r_ik_foot_vis;
+addAttr -ln "r_ik_knee_vis"  -at bool  |all_anim|settings_visibility;
+setAttr -e-keyable true |all_anim|settings_visibility.r_ik_knee_vis;
+
+
+
+select -r r_knee_anim ;
+select -add r_foot_anim ;
+group -n "r_leg_ik_grp"; xform -os -piv 0 0 0;
+
+
+expression -n "r_legVis_expr"-s "$mode = settings_anim.r_leg_state;\r\n$knee  = settings_anim.r_leg_kneeVis;\r\n\r\n// get the settings\r\n$r_fk_leg_vis = settings_visibility.r_fk_leg_vis;\r\n$r_ik_foot_vis = settings_visibility.r_ik_foot_vis;\r\n$r_ik_knee_vis = settings_visibility.r_ik_knee_vis;\r\n\r\nr_foot_anim.visibility = $mode + $r_ik_foot_vis;\r\nr_knee_anim.visibility = ($mode * $knee) + $r_ik_knee_vis;\r\nr_fk_upLeg_anim.visibility = (1-$mode) + $r_fk_leg_vis;"  -o "" -ae 1 -uc all ;
+
+setAttr "r_noFlip_upLeg_joint_distance_end.visibility" 0;
+setAttr "r_noFlip_upLeg_joint_distance_start.visibility" 0;
+setAttr "r_pv_upLeg_joint_distance_start.visibility" 0;
+setAttr "r_knee_anim_loc.visibility" 0;
+setAttr "r_pv_upLeg_joint_distance_end.visibility" 0;
+setAttr -lock true "r_noFlip_upLeg_joint_distance_end.v";
+setAttr -lock true "r_noFlip_upLeg_joint_distance_start.v";
+setAttr -lock true "r_pv_upLeg_joint_distance_start.v";
+setAttr -lock true "r_knee_anim_loc.v";
+setAttr -lock true "r_pv_upLeg_joint_distance_end.v";
+
+
+
+
+setAttr -lock true -keyable false -channelBox false "r_fk_toe_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fk_upLeg_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowLeg_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fk_foot_anim.ty";
+setAttr -lock true -keyable false -channelBox false "r_fk_toe_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fk_upLeg_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowLeg_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fk_foot_anim.tz";
+setAttr -lock true -keyable false -channelBox false "r_fk_toe_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fk_upLeg_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowLeg_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fk_foot_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_fk_toe_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fk_upLeg_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowLeg_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fk_foot_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_fk_toe_anim.sz";
+setAttr -lock true -keyable false -channelBox false "r_fk_upLeg_anim.sz";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowLeg_anim.sz";
+setAttr -lock true -keyable false -channelBox false "r_fk_foot_anim.sz";
+setAttr -lock true -keyable false -channelBox false "r_fk_toe_anim.v";
+setAttr -lock true -keyable false -channelBox false "r_fk_upLeg_anim.v";
+setAttr -lock true -keyable false -channelBox false "r_fk_lowLeg_anim.v";
+setAttr -lock true -keyable false -channelBox false "r_fk_foot_anim.v";
+setAttr -lock true -keyable false -channelBox false "r_fk_upLeg_anim.tx";
+
+
+setAttr -keyable false -channelBox false "r_fk_lowLeg_anim.tx";
+setAttr -keyable false -channelBox false "r_fk_toe_anim.tx";
+setAttr -keyable false -channelBox false "r_fk_foot_anim.tx";
+setAttr -keyable false -channelBox false "r_fk_toe_anim.radi";
+setAttr -keyable false -channelBox false "r_fk_upLeg_anim.radi";
+setAttr -keyable false -channelBox false "r_fk_lowLeg_anim.radi";
+setAttr -keyable false -channelBox false "r_fk_foot_anim.radi";
+
+setAttr -lock true -keyable false -channelBox false "r_foot_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_foot_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_foot_anim.sz";
+setAttr -keyable false -channelBox false "r_foot_anim.v";
+
+setAttr "r_toe_ikHandle.visibility" 0;
+setAttr "r_foot_ikHandle.visibility" 0;
+setAttr -lock true "r_toe_ikHandle.v";
+setAttr -lock true "r_foot_ikHandle.v";
+
+setAttr "r_ik_upLeg_joint.visibility" 0;
+setAttr "r_pv_upLeg_joint.visibility" 0;
+setAttr "r_noFlip_upLeg_joint.visibility" 0;
+setAttr -lock true "r_ik_upLeg_joint.v";
+setAttr -lock true "r_pv_upLeg_joint.v";
+setAttr -lock true "r_noFlip_upLeg_joint.v";
+
+setAttr -lock true -keyable false -channelBox false "r_knee_anim.rx";
+setAttr -lock true -keyable false -channelBox false "r_knee_anim.ry";
+setAttr -lock true -keyable false -channelBox false "r_knee_anim.rz";
+setAttr -lock true -keyable false -channelBox false "r_knee_anim.sx";
+setAttr -lock true -keyable false -channelBox false "r_knee_anim.sy";
+setAttr -lock true -keyable false -channelBox false "r_knee_anim.sz";
+setAttr -keyable false -channelBox false "r_knee_anim.v";
+setAttr "r_noFlip_knee.visibility" 0;
+setAttr -lock true "r_noFlip_knee.v";
+
+setAttr "settings_anim.r_leg_state" 1;
+setAttr "settings_anim.r_leg_kneeVis" 0;
+
+select -r r_upLeg_joint r_fk_upLeg_anim r_ik_upLeg_joint r_noFlip_upLeg_joint r_pv_upLeg_joint r_noFlip_upLeg_joint_distance_start r_noFlip_upLeg_joint_distance r_noFlip_lowLeg_joint_toElbowDist r_noFlip_lowLeg_joint_toEndDist r_pv_upLeg_joint_distance_start r_pv_upLeg_joint_distance r_pv_lowLeg_joint_toElbowDist r_pv_lowLeg_joint_toEndDist r_leg_ik_grp ;
+group -n "r_leg_grp"; xform -os -piv 0 0 0;
+
+select -r r_upLeg_joint r_fk_upLeg_anim r_ik_upLeg_joint r_noFlip_upLeg_joint r_pv_upLeg_joint r_noFlip_upLeg_joint_distance_start r_pv_upLeg_joint_distance_start ;
+group -n "r_leg_ctrl_grp"; xform -os -piv 0 0 0;
+
+select -r r_noFlip_upLeg_joint_distance r_noFlip_lowLeg_joint_toElbowDist r_noFlip_lowLeg_joint_toEndDist r_pv_upLeg_joint_distance r_pv_lowLeg_joint_toElbowDist r_pv_lowLeg_joint_toEndDist ;
+group -n "r_leg_doNotTouch"; xform -os -piv 0 0 0;
+
+parent r_leg_grp anim_grp ;
+
+xform -ws -piv $x_r_upLeg_dummy[0] $x_r_upLeg_dummy[1] $x_r_upLeg_dummy[2] r_leg_ctrl_grp;
+
+group -em -n "r_leg_ctrl_const";
+xform -ws -piv $x_r_upLeg_dummy[0] $x_r_upLeg_dummy[1] $x_r_upLeg_dummy[2] r_leg_ctrl_const;
+
+
+parentConstraint -mo -weight 1 r_leg_ctrl_const r_leg_ctrl_grp ;
+
+parent r_leg_ctrl_const hip_anim;
+
+setAttr "r_leg_doNotTouch.visibility" 0;
+setAttr -lock true "r_leg_doNotTouch.v";
+
+
+select -r r_upLeg_joint r_lowLeg_joint r_foot_joint r_toe_joint r_toeEnd_joint ;
+js_grepRename "_joint" "_skin" 0;
+
+select -r r_upLeg_skin ;
+editDisplayLayerMembers -noRecurse doNotTouch_layer `ls -selection`;
+
+
+
+select -cl;
+}
+
+
+global proc hz.finish()
+{
+
+shadingNode -asUtility multiplyDivide -n "multiplyDivide_fix_right_1";
+shadingNode -asUtility multiplyDivide -n "multiplyDivide_fix_right_2";
+
+connectAttr -f r_ik_lowArm_joint_toEndDistShape.distance multiplyDivide_fix_right_1.input1X;
+connectAttr -f multiplyDivide_fix_right_1.outputX r_ik_lowArm_joint_toEndDist_worldScale.input1X;
+
+connectAttr -f r_ik_lowArm_joint_toElbowDistShape.distance multiplyDivide_fix_right_2.input1X;
+connectAttr -f multiplyDivide_fix_right_2.outputX r_ik_lowArm_joint_toElbowDist_worldScale.input1X;
+
+setAttr "multiplyDivide_fix_right_1.input2X" -1;
+setAttr "multiplyDivide_fix_right_2.input2X" -1;
+
+
+
+source wf.js.createMatch;
+global float $rotateShoulder;
+
+
+
+
+
+
+///////////////
+parent l_ik_orient_loc l_arm_all_grp ;
+parent l_ik_elbow_anim l_ik_orient_loc ;
+parent l_ik_hand_anim l_ik_orient_loc ;
+
+/////////////////
+
+parentConstraint -mo -w 1 l_fk_orient_shoulder l_fk_orient_body l_fk_orient_all l_ik_orient_loc;
+
+
+
+setAttr "settings_anim.l_ik_arm_parent" 0;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_shoulderW0" 1;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_bodyW1" 0;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_allW2" 0;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_allW2;
+
+setAttr "settings_anim.l_ik_arm_parent" 1;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_shoulderW0" 0;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_bodyW1" 1;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_allW2" 0;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_allW2;
+
+setAttr "settings_anim.l_ik_arm_parent" 2;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_shoulderW0" 0;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_bodyW1" 0;
+setAttr "l_ik_orient_loc_parentConstraint1.l_fk_orient_allW2" 1;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.l_ik_arm_parent l_ik_orient_loc_parentConstraint1.l_fk_orient_allW2;
+
+
+
+
+
+
+
+
+
+///////////////
+parent r_ik_orient_loc r_arm_all_grp ;
+parent r_ik_elbow_anim r_ik_orient_loc ;
+parent r_ik_hand_anim r_ik_orient_loc ;
+
+/////////////////
+
+parentConstraint -mo -w 1 r_fk_orient_shoulder r_fk_orient_body r_fk_orient_all r_ik_orient_loc;
+
+
+
+setAttr "settings_anim.r_ik_arm_parent" 0;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_shoulderW0" 1;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_bodyW1" 0;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_allW2" 0;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_allW2;
+
+setAttr "settings_anim.r_ik_arm_parent" 1;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_shoulderW0" 0;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_bodyW1" 1;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_allW2" 0;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_allW2;
+
+setAttr "settings_anim.r_ik_arm_parent" 2;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_shoulderW0" 0;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_bodyW1" 0;
+setAttr "r_ik_orient_loc_parentConstraint1.r_fk_orient_allW2" 1;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_shoulderW0;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_bodyW1;
+setDrivenKeyframe -currentDriver settings_anim.r_ik_arm_parent r_ik_orient_loc_parentConstraint1.r_fk_orient_allW2;
+
+
+
+
+
+
+
+
+
+setAttr "skeleton_dummy_grp.visibility" 0;
+float $sc =`getAttr "skeleton_dummy_grp.scaleX"`;
+string 	$c = `curve -d 3 -k -1 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13
+						-k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 -k 25
+						-p 0.35339191209770171 0.20029215812743573 -1.152453111891512
+						-p 0.35336810244889416 0.20029215812743573 -1.1525402905580879
+						-p 0.87886731572296239 0.20029215812743217 -0.90677726266454528
+						-p 1.2495529869749518 0.20029215812743217 -0.078728857456208848
+						-p 0.88356739054189437 0.20029215812743217 0.80483853308568465
+						-p -8.2934181711794702e-016 0.20029215812743573 1.1708241295187438
+						-p -0.88356739054189404 0.20029215812743573 0.80483853308568598
+						-p -1.2495529869749515 0.20029215812743573 -0.078728857456208098
+						-p -0.87452000590147927 0.20029215812743573 -0.92158301711623392
+						-p -0.29131766757826516 0.20029215812743573 -1.1707618978993097
+						-p -0.29132415258075439 0.20029215812743573 -1.1708241295187438
+						-p -0.29130469757328636 -0.20029215812739309 -1.1707670838675952
+						-p -0.29135009259071198 -0.20029215812739309 -1.1707359680578793
+						-p -0.87452000590147927 -0.20029215812739309 -0.92158301711623392
+						-p -1.2495529869749515 -0.20029215812739309 -0.078728857456208098
+						-p -0.88356739054189404 -0.20029215812739309 0.80483853308568598
+						-p -9.3138789968017204e-016 -0.20029215812739309 1.1708241295187438
+						-p 0.88356739054189437 -0.20029215812743928 0.80483853308568465
+						-p 1.2495529869749518 -0.20029215812743928 -0.078728857456208848
+						-p 0.87886731572296239 -0.20029215812743928 -0.90677726266454528
+						-p 0.35336035047021275 -0.20029215812739309 -1.1526361870913222
+						-p 0.35336422645955334 -0.20029215812739309 -1.1525228548247735
+						-p 0.35339191209770171 0.20029215812743573 -1.152453111891512
+						-p 0.35336810244889416 0.20029215812743573 -1.1525402905580879
+						-p 0.87886731572296239 0.20029215812743217 -0.90677726266454528 -n "ctrl#"`;
+rotate -r 0 0 0 $c;
+scale -r (3*$sc) 1 (3*$sc) $c;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c;
+string $shc[]=`listRelatives $c`;
+parent -add -shape $shc[0] all_anim;
+delete $c;
+
+/*
+string $cu=`curve -n "g1" -d 1 -p -1 0 -1 -p 1 0 -1 -p 1 0 1 -p -1 0 1 -p -1 0 -1 -k 0 -k 1 -k 2 -k 3 -k 4 `;
+scale -r (0.29*$sc) (0.29*$sc) (0.29*$sc);
+move -r (-1.2*$sc) 0 (3.22*$sc) $cu;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $cu;
+string $shcu[]=`listRelatives $cu`;
+parent -add -shape $shcu[0] settings_anim;
+delete $cu;
+
+string $cu=`curve -n "g2" -d 1 -p -1 0 -1 -p 0 0 1 -p 1 0 -1 -p 0 0 0 -p -1 0 -1 -k 0 -k 1 -k 2 -k 3 -k 4 `;
+scale -r (0.29*$sc) (0.29*$sc) (0.29*$sc);
+move -r (1.2*$sc) 0 (3.22*$sc) $cu;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $cu;
+string $shcu[]=`listRelatives $cu`;
+parent -add -shape 	$shcu[0]  settings_visibility;
+delete $cu;
+*/
+
+setAttr all_anim.rotateOrder 2;
+
+reorder -relative -1 settings_anim ;
+reorder -relative -1 settings_visibility ;
+
+
+//wf.js.createMatch("pSphere1","t r s",{"translateX:5","translateY:10"},{"translateZ:1"},{"meh:pCube1:pCube2:0:10:50"});
+
+string $ct=wf.js.createMatch("l_fk_upArm_anim","r",{},{},{"length:l_fk_lowArm_anim:l_lowArm_joint:0:100:50"});
+parent $ct l_upArm_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+
+string $ct=wf.js.createMatch("l_fk_lowArm_anim","r",{},{},{"length:l_fk_hand_anim:l_hand_joint:0:100:50"});
+parent $ct l_lowArm_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_fk_hand_anim","r",{},{},{});
+parent $ct l_hand_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_ik_hand_anim","t r",{},{},{});
+parent $ct l_hand_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_ik_elbow_anim","t r",{},{},{"length:l_fk_hand_elbow_anim:l_hand_joint:0:100:50"});
+parent $ct l_lowArm_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_fk_hand_elbow_anim","r",{},{},{});
+parent $ct l_hand_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_foot_anim","t r",{"roll:0","lean:0","side:0","toeSpin:0"},{},{"toeWiggle:l_ik_toeEnd_joint:l_toeEnd_skin:-90:90:50","upLegLength:l_noFlip_lowLeg_joint.translateX:l_lowLeg_skin.translateX:0:30:50","lowLegLength:l_noFlip_foot_joint.translateX:l_foot_skin.translateX:0:30:50","kneeSpin:l_noFlip_lowLeg_joint:l_lowLeg_skin:-180:180:50"});
+parent $ct l_foot_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_knee_anim","t ",{"stretch:1"},{},{});
+move -r 0 0 (-2*$sc) $ct;
+parent $ct l_lowLeg_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+
+string $ct=wf.js.createMatch("l_fk_upLeg_anim","r",{},{},{"length:l_fk_lowLeg_anim:l_lowLeg_skin:0:100:50"});
+parent $ct l_upLeg_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_fk_lowLeg_anim","r",{},{},{"length:l_fk_foot_anim:l_foot_skin:0:100:50"});
+parent $ct l_lowLeg_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_fk_foot_anim","r",{},{},{});
+parent $ct l_foot_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("l_fk_toe_anim","r",{},{},{});
+parent $ct l_toe_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+
+string $ct=wf.js.createMatch("r_fk_upArm_anim","r",{},{},{"length:r_fk_lowArm_anim:r_lowArm_joint:0:100:50"});
+parent $ct r_upArm_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+
+string $ct=wf.js.createMatch("r_fk_lowArm_anim","r",{},{},{"length:r_fk_hand_anim:r_hand_joint:0:100:50"});
+parent $ct r_lowArm_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_fk_hand_anim","r",{},{},{});
+parent $ct r_hand_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_ik_hand_anim","t r",{},{},{});
+parent $ct r_hand_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_ik_elbow_anim","t r",{},{},{"length:r_fk_hand_elbow_anim:r_hand_joint:0:100:50"});
+parent $ct r_lowArm_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_fk_hand_elbow_anim","r",{},{},{});
+parent $ct r_hand_joint;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_foot_anim","t r",{"roll:0","lean:0","side:0","toeSpin:0"},{},{"toeWiggle:r_ik_toeEnd_joint:r_toeEnd_skin:-90:90:50","upLegLength:r_noFlip_lowLeg_joint.translateX:r_lowLeg_skin.translateX:0:30:50","lowLegLength:r_noFlip_foot_joint.translateX:r_foot_skin.translateX:0:30:50","kneeSpin:r_noFlip_lowLeg_joint:r_lowLeg_skin:-180:180:50"});
+parent $ct r_foot_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_knee_anim","t ",{"stretch:1"},{},{});
+move -r 0 0 (-2*$sc) $ct;
+parent $ct r_lowLeg_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+
+string $ct=wf.js.createMatch("r_fk_upLeg_anim","r",{},{},{"length:r_fk_lowLeg_anim:r_lowLeg_skin:0:100:50"});
+parent $ct r_upLeg_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_fk_lowLeg_anim","r",{},{},{"length:r_fk_foot_anim:r_foot_skin:0:100:50"});
+parent $ct r_lowLeg_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_fk_foot_anim","r",{},{},{});
+parent $ct r_foot_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+string $ct=wf.js.createMatch("r_fk_toe_anim","r",{},{},{});
+parent $ct r_toe_skin;
+
+setAttr ($ct+".visibility") 0;
+setAttr -lock true ($ct+".v");
+
+setAttr "settings_anim.l_arm_state" 0;
+setAttr "settings_anim.r_arm_state" 0;
+
+
+setAttr "l_upArm_dummy.rotateZ" $rotateShoulder;
+
+
+rotate -r -ws 0 0 $rotateShoulder l_fk_upArm_anim;
+//setAttr "l_fk_upArm_anim.rotateZ" $rotateShoulder;
+select -r l_ik_hand_anim ;
+select -tgl l_ik_elbow_anim ;
+select -tgl l_fk_hand_elbow_anim ;
+js_matchObj;
+
+
+
+rotate -r -ws 0 0 (-1*$rotateShoulder) r_fk_upArm_anim;
+//setAttr "r_fk_upArm_anim.rotateZ" $rotateShoulder;
+select -r r_ik_hand_anim ;
+select -tgl r_ik_elbow_anim ;
+select -tgl r_fk_hand_elbow_anim ;
+js_matchObj;
+
+setAttr "settings_anim.l_arm_state" 1;
+setAttr "settings_anim.r_arm_state" 1;
+
+//select -r all_anim body_anim body_anim_pivot_anim head_anim head_anim_pivot_anim hip_anim l_fingers_anim l_fk_foot_anim l_fk_hand_anim l_fk_hand_elbow_anim l_fk_lowArm_anim l_fk_lowLeg_anim l_fk_toe_anim l_fk_upArm_anim l_fk_upLeg_anim l_foot_anim l_ik_elbow_anim l_ik_hand_anim l_knee_anim l_middle_anim l_pinky_anim l_pointer_anim l_shoulder_anim l_thumb_anim l_upArm_orient_anim neck_anim r_fingers_anim r_fk_foot_anim r_fk_hand_anim r_fk_hand_elbow_anim r_fk_lowArm_anim r_fk_lowLeg_anim r_fk_toe_anim r_fk_upArm_anim r_fk_upLeg_anim r_foot_anim r_ik_elbow_anim r_ik_hand_anim r_knee_anim r_middle_anim r_pinky_anim r_pointer_anim r_shoulder_anim r_thumb_anim r_upArm_orient_anim settings_anim shoulder_anim torso_1_anim torso_2_anim ;
+//lockNode -l 1;
+
+
+select `ls -type animCurve`;
+setAttr -l 1 ".keyTimeValue";
+
+/*
+setAttr l_ik_upArm_joint.rotateOrder 2;
+setAttr l_upArm_joint.rotateOrder 2;
+setAttr l_fk_upArm_anim.rotateOrder 2;
+
+
+setAttr r_ik_upArm_joint.rotateOrder 2;
+setAttr r_upArm_joint.rotateOrder 2;
+setAttr r_fk_upArm_anim.rotateOrder 2;
+*/
+
+//delete skeleton_dummy_grp ;
+
+
+
+move -r -ws -wd 0 0 -0.05 r_ik_elbow_anim;
+move -r -ws -wd 0 0 -0.05 l_ik_elbow_anim;
+
+select -r r_upArm_end_seg r_lowArm_base_skin r_lowArm_1_skin r_lowArm_2_skin r_lowArm_3_skin ;
+js_rotOrderSwitchItems "xzy";
+select -r r_lowArm_end_seg;
+js_rotOrderSwitchItems "zyx";
+
+
+
+select -cl;
+print "\n\n**************************************\n\n Character Rigged Successfully\n\n**************************************\n\n";
+
+}
+
+
+global proc hz.makeDummy()
+	{	
+	
+		int $checkFifth=`checkBox -q -v chkFifth`;
+		//torso
+		hz.createLoc( 0 ,4.25 ,-0.75,"-z",17,0.4,"torso_base_dummy");
+		hz.createLoc(0,5.3,-0.75,"-z",17,0.4,"torso_1_dummy");
+		group -n "torso_1_dummy_grp"; xform -ws -piv 0 5.3 -0.75;
+		hz.createLoc(0,6.35,-0.75,"-z",17,0.4,"torso_2_dummy");
+		group -n "torso_2_dummy_grp"; xform -ws -piv 0 6.35 -0.75;
+		hz.createLoc(0,7.4,-0.75,"-z",17,0.4,"torso_end_dummy");
+
+		parentConstraint -mo -w .33 torso_base_dummy torso_end_dummy torso_1_dummy_grp;
+		parentConstraint -e -w 0.66 torso_base_dummy torso_1_dummy_grp;
+		parentConstraint -mo -w .33 torso_base_dummy torso_end_dummy torso_2_dummy_grp;
+		parentConstraint -e -w 0.66 torso_end_dummy torso_2_dummy_grp;
+
+		//neck
+		hz.createLoc(  0 ,8.21, -0.75,"-z",17,0.4,"neck_dummy");
+		hz.createLoc(  0 ,9.1 ,-0.566,"-z",17,0.4,"neck_end_dummy");
+
+		parent neck_end_dummy neck_dummy;
+
+		//L_leg
+		hz.createLoc( 0.876, 3.58 ,-0.77,"-z",16,0.4,"l_upLeg_dummy");
+		hz.createLoc( 0.876 ,2.0 ,-0.75,"-z",16,0.4,"l_lowLeg_dummy");
+		hz.createLoc( 0.876 ,0.2 ,-0.84,"-z",16,0.4,"l_foot_dummy");
+		hz.createLoc( 0.876 ,0.16 ,0.36,"y",16,0.4,"l_toe_dummy");
+		hz.createLoc( 0.876 ,0.09 ,1.0,"y",16,0.4,"l_toe_end_dummy");
+
+		parent l_toe_end_dummy l_toe_dummy; parent l_toe_dummy l_foot_dummy; parent l_foot_dummy l_lowLeg_dummy; parent l_lowLeg_dummy l_upLeg_dummy;
+
+		//pivs
+		hz.createLoc(  0.876, 0, 1.64 ,"-y",17,0.25,"l_toePiv_dummy");
+		hz.createLoc(  0.876, 0, -1.2 ,"-y",17,0.25,"l_heelPiv_dummy");
+
+		hz.createLoc(  0.276, 0, 0 ,"-y",17,0.25,"l_footInsidePiv_dummy");
+		hz.createLoc(  1.476, 0, 0 ,"-y",17,0.25,"l_footOutsidePiv_dummy");
+
+		parent l_toePiv_dummy l_heelPiv_dummy l_footInsidePiv_dummy l_footOutsidePiv_dummy l_toePiv_dummy l_foot_dummy ;
+
+		//L_arm 
+		hz.createLoc(  0.62, 7.68 ,-0.7,"y",16,0.4,"l_shoulder_dummy");
+		hz.createLoc(  1.45, 7.68 ,-0.7,"-z",16,0.4,"l_upArm_dummy");
+		hz.createLoc(  3.0, 7.68 ,-0.7,"-z",16,0.4,"l_lowArm_dummy");
+		hz.createLoc(  5.0, 7.68 ,-0.7,"-z",16,0.4,"l_hand_dummy");
+
+
+		//Lhand
+		hz.createLoc(  5.50 , 7.68 ,-1.0 ,"y",17,0.25,"l_fing_pinky_base_dummy");
+		hz.createLoc(  5.98, 7.68, -1.285 ,"y",17,0.25,"l_fing_pinky_1_dummy");
+		hz.createLoc(  6.28, 7.68, -1.285 ,"y",17,0.25,"l_fing_pinky_2_dummy");
+		hz.createLoc(  6.52, 7.68, -1.285 ,"y",17,0.25,"l_fing_pinky_3_dummy");
+		hz.createLoc(  6.78, 7.68, -1.285 ,"y",17,0.25,"l_fing_pinky_4_dummy");
+		
+		if ($checkFifth==1)
+		{
+		hz.createLoc(  5.50 , 7.68 ,-0.95 ,"y",17,0.25,"l_fing_ring_base_dummy");
+		hz.createLoc(  5.98, 7.68, -0.985 ,"y",17,0.25,"l_fing_ring_1_dummy");
+		hz.createLoc(  6.28, 7.68, -0.985 ,"y",17,0.25,"l_fing_ring_2_dummy");
+		hz.createLoc(  6.52, 7.68, -0.985 ,"y",17,0.25,"l_fing_ring_3_dummy");
+		hz.createLoc(  6.78, 7.68, -0.985 ,"y",17,0.25,"l_fing_ring_4_dummy");
+		}
+		
+		hz.createLoc(  5.58 ,7.68 ,-0.72 ,"y",17,0.25,"l_fing_middle_base_dummy");
+		hz.createLoc(  6.07 ,7.68 ,-0.72 ,"y",17,0.25,"l_fing_middle_1_dummy");
+		hz.createLoc(  6.41 ,7.68 ,-0.72 ,"y",17,0.25,"l_fing_middle_2_dummy");
+		hz.createLoc(  6.77 ,7.68 ,-0.72 ,"y",17,0.25,"l_fing_middle_3_dummy");
+		hz.createLoc(  7.04 ,7.68 ,-0.72 ,"y",17,0.25,"l_fing_middle_4_dummy");
+
+		hz.createLoc(  5.64, 7.68 ,-0.475 ,"y",17,0.25,"l_fing_index_base_dummy");
+		hz.createLoc(  6.03, 7.68 ,-0.390 ,"y",17,0.25,"l_fing_index_1_dummy");
+		hz.createLoc(  6.38, 7.68 ,-0.390 ,"y",17,0.25,"l_fing_index_2_dummy");
+		hz.createLoc(  6.61, 7.68 ,-0.390 ,"y",17,0.25,"l_fing_index_3_dummy");
+		hz.createLoc(  6.88, 7.68 ,-0.390 ,"y",17,0.25,"l_fing_index_4_dummy");
+
+		hz.createLoc(  5.35, 7.68, -0.496 ,"y",17,0.25,"l_fing_thumb_base_dummy");
+		hz.createLoc(  5.48, 7.662, -0.31 ,"y",17,0.25,"l_fing_thumb_1_dummy");
+		hz.createLoc(  5.48 ,7.662 ,0.072 ,"y",17,0.25,"l_fing_thumb_2_dummy");
+		hz.createLoc(  5.48 ,7.662 ,0.3 ,"y",17,0.25,"l_fing_thumb_3_dummy");
+
+
+		parent l_fing_pinky_4_dummy l_fing_pinky_3_dummy;   parent l_fing_pinky_3_dummy l_fing_pinky_2_dummy;  
+		parent l_fing_pinky_2_dummy l_fing_pinky_1_dummy;   parent l_fing_pinky_1_dummy l_fing_pinky_base_dummy;
+		
+		if ($checkFifth==1)
+		{
+		parent l_fing_ring_4_dummy l_fing_ring_3_dummy;   parent l_fing_ring_3_dummy l_fing_ring_2_dummy;  
+		parent l_fing_ring_2_dummy l_fing_ring_1_dummy;   parent l_fing_ring_1_dummy l_fing_ring_base_dummy;
+		}
+		parent l_fing_index_4_dummy l_fing_index_3_dummy;   parent l_fing_index_3_dummy l_fing_index_2_dummy;  
+		parent l_fing_index_2_dummy l_fing_index_1_dummy;   parent l_fing_index_1_dummy l_fing_index_base_dummy;
+
+		parent l_fing_middle_4_dummy l_fing_middle_3_dummy; parent l_fing_middle_3_dummy l_fing_middle_2_dummy;  
+		parent l_fing_middle_2_dummy l_fing_middle_1_dummy; parent l_fing_middle_1_dummy l_fing_middle_base_dummy;
+
+		parent l_fing_thumb_3_dummy l_fing_thumb_2_dummy;   parent l_fing_thumb_2_dummy l_fing_thumb_1_dummy; 
+		parent l_fing_thumb_1_dummy l_fing_thumb_base_dummy;
+
+		rotate -r -os 15 15 0 l_fing_thumb_1_dummy ;
+		rotate -r -os 0 7.266253 0 l_fing_pinky_1_dummy;
+		move -r -os -wd 0 0 0.0434438 l_fing_pinky_1_dummy;
+		rotate -r -os 0 -20.647124 0 l_fing_index_1_dummy;
+	    
+		if ($checkFifth==1)
+		{
+		move -r 0.0624214 0 -0.00693572 l_fing_ring_1_dummy;
+		rotate -r -eu 0 2.526542 0 l_fing_ring_1_dummy;
+	
+		move -r 0 0 0.0453168 l_fing_ring_base_dummy;
+		rotate -r -eu 0 7.451633 0 l_fing_ring_base_dummy;
+		
+		rotate -r -eu 0 20.180227 0 l_fing_pinky_1_dummy;
+		scale -r 0.894157 0.894157 0.894157 l_fing_pinky_1_dummy;
+		scale -r 1.120522 1.120522 1.120522 l_fing_ring_1_dummy;
+		
+		parent l_fing_ring_base_dummy l_hand_dummy;
+		}
+		else
+		{
+		move -r 0 0 0.0548862 l_fing_pinky_1_dummy;
+		rotate -r -eu 0 11.274347 0 l_fing_pinky_1_dummy;
+		}
+		
+		parent l_fing_thumb_base_dummy l_fing_middle_base_dummy l_fing_pinky_base_dummy l_fing_index_base_dummy l_hand_dummy;
+		parent l_hand_dummy l_lowArm_dummy; parent l_lowArm_dummy l_upArm_dummy; parent l_upArm_dummy l_shoulder_dummy;
+
+		//Right Side
+
+		group -n "l_Leg_dummy_grp" l_upLeg_dummy; 
+		xform -ws -piv 0 0 0;
+		duplicate  -n "r_Leg_dummy_grp" -rc l_Leg_dummy_grp; 
+		xform -s -1 1 1 r_Leg_dummy_grp ;
+
+		select -hi r_Leg_dummy_grp ;
+		hz.lrRename();
+
+
+		group -n "l_shoulder_dummy_grp" l_shoulder_dummy; 
+		xform -ws -piv 0 0 0;
+		duplicate  -n "r_shoulder_dummy_grp" -rc l_shoulder_dummy_grp; 
+		xform -s -1 1 1 r_shoulder_dummy_grp ;
+
+		select -hi r_shoulder_dummy_grp ;
+		hz.lrRename();
+
+		// Connect
+
+		select -hi l_upLeg_dummy ;
+		hz.lrConnect();
+
+		select -hi l_shoulder_dummy;
+		hz.lrConnect();
+
+
+
+		select -r torso_base_dummy torso_1_dummy_grp torso_2_dummy_grp torso_end_dummy neck_dummy l_Leg_dummy_grp r_Leg_dummy_grp l_shoulder_dummy_grp r_shoulder_dummy_grp ;
+		group -n "skeleton_dummy_grp"; xform -os -piv 0 0 0;
+
+
+		setAttr -lock true -keyable false -channelBox false "l_lowArm_dummy.ty";
+		setAttr -lock true -keyable false -channelBox false "l_lowArm_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_lowArm_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_lowArm_dummy.rz";
+
+		setAttr -lock true -keyable false -channelBox false "l_upArm_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_upArm_dummy.ry";
+
+		setAttr -lock true -keyable false -channelBox false "l_hand_dummy.ty";
+
+		setAttr -lock true -keyable false -channelBox false "l_shoulder_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_shoulder_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_shoulder_dummy.rz";
+
+		setAttr -lock true -keyable false -channelBox false "l_lowLeg_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "l_lowLeg_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_lowLeg_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_lowLeg_dummy.rz";
+
+		setAttr -lock true -keyable false -channelBox false "l_foot_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "l_toe_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "l_toe_end_dummy.tx";
+
+		setAttr -lock true -keyable false -channelBox false "l_toe_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_toe_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_toe_dummy.rz";
+
+
+		setAttr -lock true -keyable false -channelBox false "l_toe_end_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_toe_end_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_toe_end_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "l_toe_end_dummy.sx";
+		setAttr -lock true -keyable false -channelBox false "l_toe_end_dummy.sy";
+		setAttr -lock true -keyable false -channelBox false "l_toe_end_dummy.sz";
+
+		setAttr -lock true -keyable false -channelBox false "neck_end_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "torso_1_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "torso_base_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "torso_2_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "torso_end_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "neck_dummy.tx";
+		setAttr -lock true -keyable false -channelBox false "neck_end_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "torso_1_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "torso_base_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "torso_2_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "torso_end_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "neck_dummy.rz";
+
+		setAttr -lock true -keyable false -channelBox false "torso_base_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "neck_end_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "neck_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "torso_end_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "torso_2_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "torso_1_dummy.ry";
+
+		setAttr -lock true -keyable false -channelBox false "neck_end_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "neck_end_dummy.sx";
+		setAttr -lock true -keyable false -channelBox false "neck_end_dummy.sy";
+		setAttr -lock true -keyable false -channelBox false "neck_end_dummy.sz";
+
+		setAttr -lock true -keyable false -channelBox false "l_toePiv_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_heelPiv_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_footOutsidePiv_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_footInsidePiv_dummy.rx";
+		setAttr -lock true -keyable false -channelBox false "l_toePiv_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_heelPiv_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_footOutsidePiv_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_footInsidePiv_dummy.ry";
+		setAttr -lock true -keyable false -channelBox false "l_toePiv_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "l_heelPiv_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "l_footOutsidePiv_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "l_footInsidePiv_dummy.rz";
+		setAttr -lock true -keyable false -channelBox false "l_toePiv_dummy.sx";
+		setAttr -lock true -keyable false -channelBox false "l_heelPiv_dummy.sx";
+		setAttr -lock true -keyable false -channelBox false "l_footOutsidePiv_dummy.sx";
+		setAttr -lock true -keyable false -channelBox false "l_footInsidePiv_dummy.sx";
+		setAttr -lock true -keyable false -channelBox false "l_toePiv_dummy.sy";
+		setAttr -lock true -keyable false -channelBox false "l_heelPiv_dummy.sy";
+		setAttr -lock true -keyable false -channelBox false "l_footOutsidePiv_dummy.sy";
+		setAttr -lock true -keyable false -channelBox false "l_footInsidePiv_dummy.sy";
+		setAttr -lock true -keyable false -channelBox false "l_toePiv_dummy.sz";
+		setAttr -lock true -keyable false -channelBox false "l_heelPiv_dummy.sz";
+		setAttr -lock true -keyable false -channelBox false "l_footOutsidePiv_dummy.sz";
+		setAttr -lock true -keyable false -channelBox false "l_footInsidePiv_dummy.sz";
+		
+		move -r 0 0 -0.01 l_lowArm_dummy;
+		move -r 0 0 0.001 l_hand_dummy;
+		
+		//select -r l_upArm_dummy ;
+		setAttr "l_upArm_dummy.rotateZ" -18;
+		}
+
+
+		global proc hz.lrRename()
+		{
+		string $sels[]=`ls -sl`;
+		int $s=size($sels)-1;
+
+		while ($s >=0) 
+		{
+		string $sel = $sels[$s];
+		int $size=`size($sel)`;
+		string $last=`substring $sel $size $size`;
+
+		if ($last =="1" || $last =="2")
+		rename $sel ("r_"+`substring $sel 3 ($size-1)`);
+		else
+		rename $sel ("r_"+`substring $sel 3 $size`);
+		$s--;
+		}
+		}
+
+
+		global proc hz.lrConnect()
+		{
+		string $sels[]=`ls -sl -transforms`;
+
+		for ($sel in $sels)
+		{
+		int $size=`size($sel)`;
+		connectAttr ($sel+".t") ("r_"+`substring $sel 3 $size`+".t");
+		connectAttr ($sel+".r") ("r_"+`substring $sel 3 $size`+".r");
+		connectAttr ($sel+".s") ("r_"+`substring $sel 3 $size`+".s");
+		setAttr ("r_"+`substring $sel 3 $size`+".overrideColor") 1;
+		}
+
+	}
+
+//Create Locator Shape
+//hz.createLoc(0,0,0,"-z",17,0.8,"loc");
+
+global proc string hz.createLoc(float $x , float $y , float $z , string $direction , int $o, float $scale, string $name)
+{
+$c=`curve -n $name -d 1 -p 0 0 -1 -p 1 0 -1 -p 1 0 1 -p -1 0 1 -p -1 0 -1 -p 0 0 -1 -p 0 1 -1 -p 0 1 1 -p 0 -1 1 -p 0 -1 -1 -p 0 1 -1 -p 0 1 0 -p -1 1 0 -p -1 -1 0 -p 1 -1 0 -p 1 1 0 -p 0 1 0 -p 0 1 -1 -p 0 0 -1 -p 0 0 -4 -p 0 0.5 -4 -p 0 0.5 -5.00 -p 0 -0.5 -5.00 -p 0 -0.50 -4 -p 0 0 -4 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 `;
+scale -r (0.25*$scale) (0.25*$scale) (0.25*$scale) $c;
+
+if ($direction =="z")
+	rotate -r -os 180 0 0 $c;
+else if ($direction =="y")
+	rotate -r -os 90 0 0 $c;
+else if ($direction =="-y")
+	rotate -r -os -90 0 0 $c;	
+else if ($direction =="x")
+	rotate -r -os 0 -90 0 $c;	
+else if ($direction =="-x")
+	rotate -r -os 0 90 0 $c;
+
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $c;
+string $s[]=`listRelatives`;
+rename $s[0] ($name+"Shape");
+
+setAttr ($c+".overrideEnabled") 1;
+setAttr ($c+".overrideColor") $o;
+xform -ws -t $x $y $z $c;
+
+return $c;
+}
+
+
+
+
+
+
+
+////////////////// 	ctrls >>>
+
+
+
+
+
+
+
+global proc string cc_arrow_3_Circle()
+{
+string $cir[]=`circle -n "wf_cir" -c 0 0 0 -nr 0 1 0 -sw 60 -r 1 -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`; 
+setAttr ($cir[0]+".rotateY") 15;
+string $curve=`curve -n "wf_arrow" -d 1 -p -1 0 0 -p -1 0 -1 -p -2 0 -1 -p 0 0 -3 -p 2 0 -1 -p 1 0 -1 -p 1 0 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6` ;
+scale -r 0.259 0.259 0.259 $curve;
+move -r -os -wd 0 0 -0.964834 $curve;
+string $result[]=`attachCurve  -ch 1 -rpo 1 -kmk 0 -m 0 -bb 0.5 -bki 0 -p 0.1 $cir[0] $curve` ;
+select $result[0];
+DeleteHistory;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;
+delete $curve;
+
+select $result[0];
+duplicate -rr;
+setAttr "wf_cir1.rotateY" -90;
+
+select $result[0];
+duplicate -rr;
+setAttr "wf_cir2.rotateY" 90;
+
+string $cir2[]=`circle -n "wf_cir3" -c 0 0 0 -nr 0 1 0 -sw 90 -r 1 -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`; 
+setAttr ($cir2[0]+".rotateY") 165;
+
+
+select `ls -type transform "wf_cir*"`;
+string $result[]=`attachCurve  -ch 1 -rpo 1 -kmk 0 -m 0 -bb 0.5 -bki 0 -p 0.1` ;
+
+select $result[0];
+DeleteHistory;
+
+delete wf_cir1;
+delete wf_cir2;
+delete wf_cir3;
+
+string $k=`rename $result[0] "ctrl"`;
+
+return $k;
+
+}
+
+global proc string cc_arrow_2_Circle()
+{
+string $cir[]=`circle -n "wf_cir" -c 0 0 0 -nr 0 1 0 -sw 150 -r 1 -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`; 
+setAttr ($cir[0]+".rotateY") 15;
+
+string $curve=`curve -n "wf_arrow" -d 1 -p -1 0 0 -p -1 0 -1 -p -2 0 -1 -p 0 0 -3 -p 2 0 -1 -p 1 0 -1 -p 1 0 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6` ;
+scale -r 0.259 0.259 0.259 $curve;
+move -r -os -wd 0 0 -0.964834 $curve;
+
+string $result[]=`attachCurve  -ch 1 -rpo 1 -kmk 0 -m 0 -bb 0.5 -bki 0 -p 0.1 $cir[0] $curve` ;
+select $result[0];
+DeleteHistory;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;
+delete $curve;
+
+select $result[0];
+duplicate -rr;
+setAttr "wf_cir1.rotateY" -180;
+
+select `ls -type transform "wf_cir*"`;
+string $result[]=`attachCurve  -ch 1 -rpo 1 -kmk 0 -m 0 -bb 0.5 -bki 0 -p 0.1` ;
+
+
+select $result[0];
+DeleteHistory;
+
+delete wf_cir1;
+string $k=`rename $result[0] "ctrl"`;
+
+return $k;
+}
+
+global proc string cc_arrow_4_Circle()
+{
+
+
+string $cir[]=`circle -n "wf_cir" -c 0 0 0 -nr 0 1 0 -sw 60 -r 1 -d 3 -ut 0 -tol 0.01 -s 8 -ch 1`; 
+setAttr ($cir[0]+".rotateY") 15;
+
+
+string $curve=`curve -n "wf_arrow" -d 1 -p -1 0 0 -p -1 0 -1 -p -2 0 -1 -p 0 0 -3 -p 2 0 -1 -p 1 0 -1 -p 1 0 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6` ;
+scale -r 0.259 0.259 0.259 $curve;
+move -r -os -wd 0 0 -0.964834 $curve;
+
+
+string $result[]=`attachCurve  -ch 1 -rpo 1 -kmk 0 -m 0 -bb 0.5 -bki 0 -p 0.1 $cir[0] $curve` ;
+
+select $result[0];
+DeleteHistory;
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;
+delete $curve;
+
+select $result[0];
+duplicate -rr;
+setAttr "wf_cir1.rotateY" -90;
+duplicate -rr;
+setAttr "wf_cir2.rotateY" -180;
+duplicate -rr;
+setAttr "wf_cir3.rotateY" -270;
+
+select `ls -type transform "wf_cir*"`;
+string $result[]=`attachCurve  -ch 1 -rpo 1 -kmk 0 -m 0 -bb 0.5 -bki 0 -p 0.1` ;
+
+select $result[0];
+DeleteHistory;
+
+delete wf_cir1;
+delete wf_cir2;
+delete wf_cir3;
+
+string $k=`rename $result[0] "ctrl"`;
+
+return $k;
+
+}
+
+global proc string fingCtrl_4()
+{
+$c = "g_fingers_anim";
+					createNode transform -name "g_fingers_anim";
+					createNode nurbsCurve -name "g_fingers_animShape" -parent "g_fingers_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 27 0 no 3
+							32 24.684238740000001 24.684238740000001 24.684238740000001 25 26 27 28 29
+							 30 30.758475789999999 31.626223939999999 32.49397209 33.361720239999997 34.229468389999994
+							 35.097216539999991 35.964964689999988 36.832712839999985 37.700460989999982 38.568209139999979
+							 39.435957289999976 40.303705439999973 41.17145358999997 42.039201739999967 42.906949889999964
+							 43.774698039999961 44.642446189999959 45.510194339999956 46.377942489999953 47.24569063999995
+							 48.113438789999947 48.113438789999947 48.113438789999947
+							30
+							-1.5581831527513312 2.8322934629127534 0
+							-1.5207350270968636 2.5802807518302462 8.8817841970012523e-016
+							-1.2857413282809258 1.808337694615739 8.8817841970012523e-016
+							-1.3918720944434124 1.0796093180053203 8.8817841970012523e-016
+							-1.1354992529027275 0.09361752701754078 8.8817841970012523e-016
+							0.1183012095552094 0.1947064731768684 8.8817841970012523e-016
+							0.54392809613221438 0.30062396133694413 8.8817841970012523e-016
+							0.78213463427457164 0.44354788422256952 8.8817841970012523e-016
+							0.89992249140819247 0.51571390352265656 0
+							0.97163533375439215 0.58528207805137544 0
+							0.81902546954674271 1.4910314316256645 0
+							0.6529214048308738 1.6202234819602293 0
+							0.6344653976402217 1.9708876185826192 0
+							0.6529214048308738 3.0228800284497925 0
+							0.0069611531580484609 3.3550881578815321 0
+							-0.49798898650921153 3.3063580818292291 0
+							-1.211135321424992 2.6906718990180547 0
+							-1.395695393331513 2.4876558199208798 0
+							-1.1373112926623836 1.9155195970106647 0
+							-0.49135104098955829 2.4507438055395756 0
+							-0.10377488998586415 2.7091279062087068 0
+							0.30225726820848386 2.5799358558741421 0
+							0.44990532573370068 1.9524316113919671 0
+							0.44990532573370068 1.2326473309565351 0
+							0.043873167539352664 0.97426323028740391 0
+							-0.78664715603999191 1.0849992734313174 0
+							-0.49135104098955829 1.4910314316256645 0
+							-0.6574551057054272 1.8601515754387066 0
+							-1.1373112926623836 1.7863275466760982 0
+							-1.3034153573782543 1.4725754244350124 0
+							;
+					createNode transform -name "g_fing_index_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_fing_index_animShape" -parent "g_fing_index_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 8 0 no 3
+							13 5.6478197129999996 5.6478197129999996 5.6478197129999996 6 7 8 9 10 11 12
+							 12.3372251 12.3372251 12.3372251
+							11
+							0.73819936026336086 1.5468014020543088 0
+							0.73792809477712573 1.6010023443289074 0
+							0.75748618291469205 1.8323001611742282 0
+							1.0358739993349859 2.3802245168115004 0
+							1.4261345425644847 3.1538972821007798 0.069933077494726381
+							1.8566574529604809 4.1316941929479336 0.001721490016423452
+							1.8285405951513809 4.888566101041051 -0.069933077494726825
+							1.2814682194964444 4.6425922192371587 -0.075667277544081646
+							0.84691890090831523 3.5444824080171857 0
+							0.77394302130368942 3.3991332389794726 0
+							0.68835523234920071 3.3538231315727041 0.0043604841816480278
+							;
+					createNode transform -name "g_fing_ring_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_fing_ring_animShape" -parent "g_fing_ring_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 6 0 no 3
+							11 12.3372251 12.3372251 12.3372251 13 14 15 16 17 17.078376649999999 17.078376649999999
+							 17.078376649999999
+							9
+							-0.019364647044259442 3.4162435034837535 0
+							-0.049308342745066014 3.4061825349394321 0
+							-0.13254346671012629 3.5910351901457886 0
+							-0.28742480593113018 5.2390438245618736 0
+							-1.0205815121713087 4.8614373850301611 0
+							-0.79593805046434585 4.0261032772950287 0
+							-0.58295367620936389 3.3895261021781415 0
+							-0.69788826597230447 3.3426624613193265 0
+							-0.70141551807269842 3.3418023080661907 0
+							;
+					createNode transform -name "g_fing_pinky_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_fing_pinky_animShape" -parent "g_fing_pinky_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 5 0 no 3
+							10 17.078376649999999 17.078376649999999 17.078376649999999 18 19 20 21 21.41301545
+							 21.41301545 21.41301545
+							8
+							-0.70141551807269842 3.3418023080661907 0
+							-0.9190206762321953 3.2742629107308368 0
+							-1.2237439687698544 3.8082464828944182 0
+							-1.3754549298511325 4.5577418036422515 0
+							-2.0125470963213505 4.6680390729542527 0
+							-1.6062152975813451 3.0700004312829279 0
+							-1.5415895875216119 2.8382394965615116 0
+							-1.5601122947507537 2.8312893978055804 0
+							;
+					createNode transform -name "g_thumb_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_thumb_animShape" -parent "g_thumb_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 7 0 no 3
+							12 30.758475789999999 30.758475789999999 30.758475789999999 31 32 33 34 35
+							 36 36.647819712999997 36.647819712999997 36.647819712999997
+							10
+							0.97163533375439215 0.58528207805137544 0
+							0.99447111549308254 0.60743492540091459 0
+							1.1227534284981733 0.74134559663105648 8.8817841970012523e-016
+							1.4974716011444862 1.2337166790173022 0
+							2.0125470963213505 1.4995718921452692 0
+							1.8578214197907528 2.0846994672536212 0
+							1.4031677212866729 2.2678690366724599 0
+							0.92401867915736879 1.4133025538357646 0
+							0.7686214056503573 1.5011793898314334 0
+							0.70795851413495114 1.5703786123470191 0
+							;
+					createNode transform -name "g_fing_middle_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_fing_middle_animShape" -parent "g_fing_middle_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 6 0 no 3
+							11 12.3372251 12.3372251 12.3372251 13 14 15 16 17 17.078376649999999 17.078376649999999
+							 17.078376649999999
+							9
+							0.68951852299993899 3.3523472415105631 0
+							0.63756826966841307 3.3840329606975184 0
+							0.70829813880870962 3.683396423025187 0
+							1.0449839418138303 5.3040639886917722 0
+							0.23319387318284851 5.1587978069670815 0
+							0.20221030493384873 4.294339725315985 0
+							0.10668707352944223 3.4893890344061962 0
+							0.04219558285690414 3.4459427185774971 0
+							-0.014350901380132508 3.4155375693086869 0
+							;
+
+
+select -r $c;
+//scale -r 1.5 1.5 1.5;
+rotate -r -90 0 180;
+return $c;
+}
+
+global proc string fingCtrl_3()
+{
+$c = "g_fingers_anim";
+					createNode transform -name "g_fingers_anim";
+					createNode nurbsCurve -name "g_fingers_animShape" -parent "g_fingers_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 27 0 no 3
+							32 24.684238740000001 24.684238740000001 24.684238740000001 25 26 27 28 29
+							 30 30.758475789999999 31.626223939999999 32.49397209 33.361720239999997 34.229468389999994
+							 35.097216539999991 35.964964689999988 36.832712839999985 37.700460989999982 38.568209139999979
+							 39.435957289999976 40.303705439999973 41.17145358999997 42.039201739999967 42.906949889999964
+							 43.774698039999961 44.642446189999959 45.510194339999956 46.377942489999953 47.24569063999995
+							 48.113438789999947 48.113438789999947 48.113438789999947
+							30
+							-1.5581831527513312 2.8322934629127534 0
+							-1.5207350270968636 2.5802807518302462 8.8817841970012523e-016
+							-1.2857413282809258 1.808337694615739 8.8817841970012523e-016
+							-1.3918720944434124 1.0796093180053203 8.8817841970012523e-016
+							-1.1354992529027275 0.09361752701754078 8.8817841970012523e-016
+							0.1183012095552094 0.1947064731768684 8.8817841970012523e-016
+							0.54392809613221438 0.30062396133694413 8.8817841970012523e-016
+							0.78213463427457164 0.44354788422256952 8.8817841970012523e-016
+							0.89992249140819247 0.51571390352265656 0
+							0.97163533375439215 0.58528207805137544 0
+							0.81902546954674271 1.4910314316256645 0
+							0.6529214048308738 1.6202234819602293 0
+							0.6344653976402217 1.9708876185826192 0
+							0.6529214048308738 3.0228800284497925 0
+							0.0069611531580484609 3.3550881578815321 0
+							-0.49798898650921153 3.3063580818292291 0
+							-1.211135321424992 2.6906718990180547 0
+							-1.395695393331513 2.4876558199208798 0
+							-1.1373112926623836 1.9155195970106647 0
+							-0.49135104098955829 2.4507438055395756 0
+							-0.10377488998586415 2.7091279062087068 0
+							0.30225726820848386 2.5799358558741421 0
+							0.44990532573370068 1.9524316113919671 0
+							0.44990532573370068 1.2326473309565351 0
+							0.043873167539352664 0.97426323028740391 0
+							-0.78664715603999191 1.0849992734313174 0
+							-0.49135104098955829 1.4910314316256645 0
+							-0.6574551057054272 1.8601515754387066 0
+							-1.1373112926623836 1.7863275466760982 0
+							-1.3034153573782543 1.4725754244350124 0
+							;
+
+					createNode transform -name "g_fing_middle_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_fing_middle_animShape" -parent "g_fing_middle_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 6 0 no 3
+							11 12.3372251 12.3372251 12.3372251 13 14 15 16 17 17.078376649999999 17.078376649999999
+							 17.078376649999999
+							9
+							-0.019364647044259442 3.4162435034837535 0
+							-0.049308342745066014 3.4061825349394321 0
+							-0.13254346671012629 3.5910351901457886 0
+							-0.28742480593113018 5.2390438245618736 0
+							-1.0205815121713087 4.8614373850301611 0
+							-0.79593805046434585 4.0261032772950287 0
+							-0.58295367620936389 3.3895261021781415 0
+							-0.69788826597230447 3.3426624613193265 0
+							-0.70141551807269842 3.3418023080661907 0
+							;
+					createNode transform -name "g_fing_pinky_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_fing_pinky_animShape" -parent "g_fing_pinky_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 5 0 no 3
+							10 17.078376649999999 17.078376649999999 17.078376649999999 18 19 20 21 21.41301545
+							 21.41301545 21.41301545
+							8
+							-0.70141551807269842 3.3418023080661907 0
+							-0.9190206762321953 3.2742629107308368 0
+							-1.2237439687698544 3.8082464828944182 0
+							-1.3754549298511325 4.5577418036422515 0
+							-2.0125470963213505 4.6680390729542527 0
+							-1.6062152975813451 3.0700004312829279 0
+							-1.5415895875216119 2.8382394965615116 0
+							-1.5601122947507537 2.8312893978055804 0
+							;
+					createNode transform -name "g_thumb_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_thumb_animShape" -parent "g_thumb_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 7 0 no 3
+							12 30.758475789999999 30.758475789999999 30.758475789999999 31 32 33 34 35
+							 36 36.647819712999997 36.647819712999997 36.647819712999997
+							10
+							0.97163533375439215 0.58528207805137544 0
+							0.99447111549308254 0.60743492540091459 0
+							1.1227534284981733 0.74134559663105648 8.8817841970012523e-016
+							1.4974716011444862 1.2337166790173022 0
+							2.0125470963213505 1.4995718921452692 0
+							1.8578214197907528 2.0846994672536212 0
+							1.4031677212866729 2.2678690366724599 0
+							0.92401867915736879 1.4133025538357646 0
+							0.7686214056503573 1.5011793898314334 0
+							0.70795851413495114 1.5703786123470191 0
+							;
+					createNode transform -name "g_fing_index_anim" -parent "g_fingers_anim";
+						setAttr -lock on -keyable off ".visibility";
+						setAttr -lock on -keyable off ".translateX";
+						setAttr -lock on -keyable off ".translateY";
+						setAttr -lock on -keyable off ".translateZ";
+						setAttr -lock on -keyable off ".rotateX";
+						setAttr -lock on -keyable off ".rotateY";
+						setAttr -lock on -keyable off ".rotateZ";
+						setAttr -lock on -keyable off ".scaleX";
+						setAttr -lock on -keyable off ".scaleY";
+						setAttr -lock on -keyable off ".scaleZ";
+					createNode nurbsCurve -name "g_fing_index_animShape" -parent "g_fing_index_anim";
+						setAttr -keyable off ".visibility";
+						setAttr ".cached" -type "nurbsCurve" 
+							3 6 0 no 3
+							11 12.3372251 12.3372251 12.3372251 13 14 15 16 17 17.078376649999999 17.078376649999999
+							 17.078376649999999
+							9
+							0.68951852299993899 3.3523472415105631 0
+							0.63756826966841307 3.3840329606975184 0
+							0.70829813880870962 3.683396423025187 0
+							1.0449839418138303 5.3040639886917722 0
+							0.23319387318284851 5.1587978069670815 0
+							0.20221030493384873 4.294339725315985 0
+							0.10668707352944223 3.4893890344061962 0
+							0.04219558285690414 3.4459427185774971 0
+							-0.014350901380132508 3.4155375693086869 0
+							;
+
+
+select -r $c;
+//scale -r 1.5 1.5 1.5;
+rotate -r -90 0 180;
+	
+hilite g_fing_index_anim ;
+select -r g_fing_index_anim.cv[0] ;
+move -r -os -wd 0 -0.978096 0 ;
+hilite -u g_fing_index_anim ;
+
+return $c;	
+}
+
+
+global proc js_source()
+{
+ //source jsOrientJointUI;  
+ source js_addAllAttrsToStretchTSL;  
+ source js_addHalfJoint;  
+ source js_addNormalizeScale;  
+ source js_addSuffixWin;  
+ source js_addWorldScaleToDistance;  
+ source js_attrDraggerSingle;  
+ source js_autoRotate;  
+ source js_connectBlend;  
+ source js_connectBlendUI;  
+ source js_copyPivot;  
+ source js_copySetDrivenKeyUI;  
+ source js_createCurveControl;  
+ source js_createIkStretch;  
+ source js_createIkStretchUI;  
+ source js_createMeasureTool;  
+ source js_createSkelGeo;  
+ source js_createStretchSpline;  
+ source js_createStretchSplineUI;  
+ source js_createTwistySegment;  
+ source js_createTwistySegmentUI;  
+ source js_cutPlane;  
+ source js_error;  
+ source js_findOrError;  
+ source js_findRootOrError;  
+ source js_getAttachedObjects;  
+ source js_getOptionVar;  
+ source js_getOptionVarString;  
+ source js_getStretchAxis;  
+ source js_grepRename;  
+ source js_grepRenameUI;  
+ source js_hashRename;  
+ source js_hashRenameUI;  
+ source js_iterator;  
+ source js_loadSelectedIntoButtonGrp;  
+ source js_matchObj;  
+ source js_matchObjUI;  
+ source js_multiConstraintSnapUI;  
+ source js_pivot;  
+ source js_quickAddAttr;  
+ source js_renameGeoAsParent;  
+ source js_replaceHash;  
+ source js_rotationOrderWin;  
+ source js_selectFromRoot;  
+ source js_setDrivenKeyAutoDriveUI;  
+ source js_setDrivenKeyLength;  
+ source js_setUpMultiConstraint;  
+ source js_setUpMultiConstraintUI;  
+ source js_snapObjectToConst;  
+ source js_splitSelJoint;  
+ source js_splitSelJointUI;  
+ source js_toggleRef;  
+}
+
+

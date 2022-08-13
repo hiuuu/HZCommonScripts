@@ -1,0 +1,71 @@
+// --------------------------------------------------------------------------
+// HZOverrideManager.mel - MEL Script
+// --------------------------------------------------------------------------
+//
+// DESCRIPTION:
+//	use this tool for manage display override of objects easily.
+//
+//
+// REQUIRES:
+//	Nothing.
+//	
+//
+// USAGE:
+//	source "HZOverrideManager.mel";  HZOverrideManager() ;
+//
+//
+// AUTHORS:
+//	Hamed Zandieh - h.zandieh@gmail.com
+//	Copyright 2011 Hamed Zandieh - All Rights Reserved.
+//
+// VERSIONS:
+//	1.00 - Mar 2011 - Initial Release.
+//
+// --------------------------------------------------------------------------
+
+global proc HZOverrideManager() {
+	if(`window -exists hzOverrideManagerWin`)
+		deleteUI hzOverrideManagerWin;
+	string $winName = `window -rtf 1 -width 1 -height 1 -title "HZ Display Override Manager v1.0" hzOverrideManagerWin `; 
+	columnLayout;
+		text -label "";
+	 radioButtonGrp -numberOfRadioButtons 3 -label "Display Type" -labelArray3 "Normal" "Template" "Refrence" -select 1 dispTyp;
+	 radioButtonGrp -numberOfRadioButtons 2 -label "Level of Details" -labelArray2 "Full" "Bounding Box" -select 1 levelDetail;
+   colorIndexSliderGrp -label "Select Color" -min 1 -max 32 -value 1 colorIdx;
+		text -label "";
+  rowLayout -cat 1 "left" 50 -nc 2 -cw2 275 150 -cl2 "center" "center";
+   button -width 200 -height 30 -bgc 0.4963670671 0.8000000119 0.2343999892 -label "Apply to Selections" -command "HZApplyOverrides()";
+   button -width 150 -height 30 -label "Reset Selections" -command "HZResetOverrides()";
+	showWindow $winName;
+}
+
+global proc HZApplyOverrides() {
+	$lst = `ls -sl`;
+  if (size($lst) < 1) {
+		print "Please select one transfer node at least.";
+		return;
+	}
+	int $dt = `radioButtonGrp -q -sl dispTyp`;
+	int $ld = `radioButtonGrp -q -sl levelDetail`;
+	int $ci = `colorIndexSliderGrp -q -value colorIdx`;
+	for($sel in $lst) {
+		setAttr ($sel+".overrideEnabled") 1;
+		setAttr ($sel+".overrideDisplayType") ($dt-1);
+		setAttr ($sel+".overrideLevelOfDetail") ($ld-1);
+		setAttr ($sel+".overrideColor") ($ci-1);
+	}
+}
+
+global proc HZResetOverrides() {
+	$lst = `ls -sl`;
+  if (size($lst) < 1) {
+		print "Please select one transfer node at least.";
+		return;
+	}
+	for($sel in $lst) {
+		setAttr ($sel+".overrideDisplayType") 0;
+		setAttr ($sel+".overrideLevelOfDetail") 0;
+		setAttr ($sel+".overrideColor") 0;
+		setAttr ($sel+".overrideEnabled") 0;
+	}
+}

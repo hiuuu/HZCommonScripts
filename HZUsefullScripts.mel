@@ -1,0 +1,852 @@
+// --------------------------------------------------------------------------
+// HZUsefullScripts.mel - MEL Script
+// --------------------------------------------------------------------------
+//
+// DESCRIPTION:
+//	use this tool for some usefull rig tools.
+//
+//
+// REQUIRES:
+//	Nothing.
+//	
+//
+// USAGE:
+//	source "HZUsefullScripts.mel";  HZUsefullScripts() ;
+//
+//
+// AUTHORS:
+//	Hamed Zandieh - h.zandieh@gmail.com
+//	Copyright 2011 Hamed Zandieh - All Rights Reserved.
+//
+// VERSIONS:
+//	1.10 - Mar 2011 - Initial Release.
+//
+// --------------------------------------------------------------------------
+
+global proc HZUsefullScripts() {
+	if(`window -exists hzUsefullScriptsWin`)
+		deleteUI hzUsefullScriptsWin;
+	string $winName = `window -rtf 1 -width 1 -height 1 -title "HZ Tools v1.1"  hzUsefullScriptsWin `; 
+		columnLayout;
+  button -width 100 -bgc 0.269600004 0.5944699645 0.8000000119 -label "Snap" -command "hzSnap {}";
+  button -width 100 -bgc 0.8000000119 0.8000000119 0.8000000119 -label "ShapeParent" -command "HZmakeShapeParent()";
+  button -width 100 -bgc 0.8000000119 0.3623886704 0.3480000198 -label "ClusterFromVertx" -command "HZmakeClusterFromVertx()";
+  button -width 100 -bgc 0.4963670671 0.8000000119 0.2343999892 -label "CorrectShape" -command "HZcorrectShapeName()";
+  button -width 100 -bgc 0.269600004 0.5944699645 0.8000000119 -label "MirrorBlendshape" -command "HZmirrorBlendshape()";
+  button -width 100 -bgc 0.8000000119 0.8000000119 0.8000000119 -label "GuideLine" -command "makeGuideLine()";
+  button -width 100 -bgc 0.8000000119 0.3623886704 0.3480000198 -label "CreateHeadBldShp" -command "HZmakeHeadBldShp()";
+  button -width 100 -bgc 0.4963670671 0.8000000119 0.2343999892 -label "AttachLocator" -command "HZAttach()";
+    rowLayout -nc 2 -cw2 50 50 -cl2 "center" "center";
+     button -width 50 -bgc 0.269600004 0.5944699645 0.8000000119 -label "AttrUP" -command "smAttrUp()";
+     button -width 50 -bgc 0.269600004 0.5944699645 0.8000000119 -label "AttrDN" -command "smAttrDwn()";
+    setParent ..;
+  button -width 100 -bgc 0.8000000119 0.8000000119 0.8000000119 -label "Order Inputs" -command "jd_reorderDeformer()";
+  //button -width 100 -bgc 0.8000000119 0.3623886704 0.3480000198 -label "" -command "";
+	showWindow $winName;
+
+}
+
+////////////////////
+
+global proc HZmakeShapeParent() {
+	$sel = `ls -sl`;
+	$ctrlShape = `listRelatives -s -path $sel[0]`;
+	parent -r -s $ctrlShape $sel[1];
+	delete $sel[0];
+	print ($sel[0] + " was shape parented to " + $sel[1] + ".\n");
+}
+
+////////////////////
+
+global proc HZmakeClusterFromVertx() {
+ ConvertSelectionToVertices;
+ hilite;
+ selectType -ocm -alc false;
+ selectType -ocm -polymeshVertex true;
+ newCluster " -envelope 1";
+}
+
+//////////////////////
+
+global proc HZcorrectShapeName() {
+ $objs = `ls -sl`;
+ for ($obj in $objs) {
+  $shapes = `listRelatives -f -s $obj`;
+  for ($shp in $shapes) {
+    rename $shp ($obj + "Shape");
+  }
+ }
+}
+
+////////////////////
+
+global proc HZmirrorBlendshape() {
+ $objs = `ls -sl`;
+ $fromObj = $objs[0];
+ $sObj = $objs[1];
+ $wObj = `duplicate -rr $sObj`;
+ setAttr ($sObj + ".scaleX") -1;
+ $bendNod = `blendShape $fromObj $sObj`;
+ select $wObj $sObj;
+ $wraper = `deformer -type wrap $wObj`;
+ $sObjBase = `duplicate -rr $sObj`;
+ $sObjShape = `pickWalk -d down $sObj`;
+ $sObjBaseShape = `pickWalk -d down $sObjBase`;
+ $wObjShape = `pickWalk -d down $wObj`;
+ select $sObj;
+ addAttr -ln "dd"  -at double  -dv 4 ;
+ addAttr -ln "ss"  -at double  -dv 0;
+ addAttr -ln "ii"  -at double  -dv 2;
+ connectAttr -f ($sObj+".dd") ($wraper[0]+".dropoff[0]");
+ connectAttr -f ($sObj+".ss") ($wraper[0]+".smoothness[0]");
+ connectAttr -f ($sObj+".ii") ($wraper[0]+".inflType[0]");
+ connectAttr -f ($sObjShape[0]+".worldMesh[0]") ($wraper[0]+".driverPoints[0]");
+ connectAttr -f ($sObjBaseShape[0]+".worldMesh[0]") ($wraper[0]+".basePoints[0]");
+ connectAttr -f ($wObjShape[0]+".worldMatrix[0]") ($wraper[0]+".geomMatrix");
+ setAttr ($bendNod[0] + "." + $fromObj) 1;
+ duplicate -rr $wObj;
+ delete $sObj $wObj $sObjBase;
+}
+
+//////////////////////
+
+global proc makeGuideLine()
+{
+  $l = `ls -sl`;
+  if (size($l) != 2) {
+		print "Please select 2 objects. Controller object should be first.";
+		return;
+	}
+  $crv = `curve -d 1 -p 0 0 0 -p 5 0 0 -k 0 -k 1 -n ($l[0]+"Guideline_curve")` ;
+  //$crvshp = `listRelatives -f -s ($crv)`;
+  select -r ($crv+".cv[0]");
+  $clust1 = `newCluster "-envelope 1"`; // Result: <clusterName> <clusterName>Handle //
+  $clust1[1] = `rename $clust1[1] ($l[0]+"GuidelineHandle")`;
+  select -r ($crv+".cv[1]");
+  $clust2 = `newCluster "-envelope 1"`; 
+  $clust2[1] = `rename $clust2[1] ($l[1]+"GuidelineHandle")`;
+  select -r $l[0] $clust1[1];
+  pointConstraint -offset 0 0 0 -weight 1;
+  select -r $l[1] $clust2[1];
+  pointConstraint -offset 0 0 0 -weight 1;
+  setAttr ($clust1[1]+".visibility") 0;
+  setAttr ($clust2[1]+".visibility") 0;
+  setAttr -lock true ($clust1[1]+".v");
+  setAttr -lock true ($clust2[1]+".v");
+  //setAttr ($crv+".template") 1;
+  setAttr ($crv+".overrideEnabled") 1;
+  setAttr ($crv+".overrideDisplayType") 1;
+  connectAttr -f ($l[0]+".visibility") ($crv+".visibility");
+  //connectAttr -f ($l[0]+".overrideColor") ($crv+".overrideColor");
+  setAttr ($crv+".overrideColor") 2;
+	select -r $crv $clust1[1] $clust2[1] ;
+  $grp = `group -n ($l[0]+"Guideline_grp")`; 
+  xform -os -piv 0 0 0;
+  setAttr ($grp+".inheritsTransform") 0;
+}
+
+
+//////////////////////////////
+
+global proc HZmakeHeadBldShp() {
+	$lst = `ls -sl`;
+	if (size($lst) != 1) {
+		print "Please select 1 object to be copy. (wraped object)";
+		return;
+	}
+	float $bmin[] = `getAttr ($lst[0]+".boundingBoxMin")`;
+  float $bmax[] = `getAttr ($lst[0]+".boundingBoxMax")`;
+  $offsetx = $bmax[0] - $bmin[0];
+  $offsety = $bmax[1] - $bmin[1];
+	$currBldShp = `ls -typ "blendShape"`;
+	if (size($currBldShp) != 1) {
+		print "No BlendShape node OR more than one node exists!";
+		return;
+	}
+	$listOfShapesInNode = `listAttr -k -m $currBldShp[0]`;
+	int $i = 1; int $y = 0; int $x = 0; int $row = 10; int $rowCnt = 0;
+	while ($listOfShapesInNode[$i] != "")
+	{
+		setAttr ($currBldShp[0] + "." + $listOfShapesInNode[$i]) 1;
+		select -r $lst[0] ;
+		$dup = `duplicate -rr`;
+		rename $dup "BS_1";
+		$x = $offsetx*($i-($rowCnt*$row)) ; 
+		$y = $offsety*$rowCnt; 
+		if ($i >= (($rowCnt+1)*$row)) $rowCnt++;
+		move -r -os -wd $x $y 0 ;
+		setAttr ($currBldShp[0] + "." + $listOfShapesInNode[$i]) 0;
+		$i++;
+	}
+}
+
+////////////////////
+
+global proc string HZAttach()
+{
+	string $nameObject;
+	string $namePOSI;
+	
+	string $parts[];
+	string $list[] = `filterExpand -sm 32`; // Polygon Edges 
+	
+	int $size = size($list);
+	int $slFlag = 0, $cFlag = 0;
+	
+	float $cPr = 0;
+	
+	if ($size == 2)
+	{
+		tokenize($list[0],".",$parts);
+		$nameObject = $parts[0];
+		tokenize($list[0],"[]",$parts);
+		float $e1 = $parts[1];
+		tokenize($list[1],"[]",$parts);
+		float $e2 = $parts[1];
+	
+		string $nameCFME1 = `createNode curveFromMeshEdge -n "hzAttachCurveFromMeshEdge1"`;
+			setAttr ".ihi" 1;
+			setAttr ".ei[0]"  $e1;
+		string $nameCFME2 = `createNode curveFromMeshEdge -n "hzAttachCurveFromMeshEdge2"`;
+			setAttr ".ihi" 1;
+			setAttr ".ei[0]"  $e2;
+		string $nameLoft = `createNode loft -n "hzAttachLoft1"`;
+			setAttr -s 2 ".ic";
+			setAttr ".u" yes;
+			setAttr ".rsn" yes;
+	
+		$namePOSI = `createNode pointOnSurfaceInfo -n "hzAttachPointOnSurfaceInfo1"`;
+			setAttr ".turnOnPercentage" 1;
+			setAttr ".parameterU" 0.5;
+			setAttr ".parameterV" 0.5;
+	
+		connectAttr -f ($nameLoft + ".os") ($namePOSI + ".is");
+		connectAttr ($nameCFME1 + ".oc") ($nameLoft + ".ic[0]");
+		connectAttr ($nameCFME2 + ".oc") ($nameLoft + ".ic[1]");
+		connectAttr ($nameObject + ".w") ($nameCFME1 + ".im");
+		connectAttr ($nameObject + ".w") ($nameCFME2 + ".im");
+	}
+	
+	else if ($size < 2)
+	{
+		$list = `filterExpand -sm 41`; // Surface Parameter Points 
+		$size = size($list); 
+	
+		if ($size == 1)
+		{
+			tokenize($list[0],".",$parts);
+			$nameObject = $parts[0];
+			tokenize($list[0],"[]",$parts);
+			float $u = $parts[1];
+			float $v = $parts[2];
+			$namePOSI = `createNode pointOnSurfaceInfo -n "hzAttachPointOnSurfaceInfo1"`;
+					setAttr ".turnOnPercentage" 0;
+					setAttr ".parameterU" $u;
+					setAttr ".parameterV" $v;
+			connectAttr -f ($nameObject + ".ws") ($namePOSI + ".is");
+			$slFlag = 1;
+		}
+	
+		$list = `filterExpand -sm 39`; // Curve Parameter Points
+		$size = size($list);
+	
+		if ($size == 1)
+		{
+			tokenize($list[0],".",$parts);
+			$nameObject = $parts[0];
+			tokenize($list[0],"[]",$parts);
+			$cPr = $parts[1];
+			$namePOSI = `pointOnCurve -ch on`;
+			$slFlag = 1;
+			$cFlag = 1;
+		}
+	
+		$list = `filterExpand -sm 45`; // Surface Isoparms 
+		$size = size($list);
+	
+		if ($size == 1)
+		{
+			tokenize($list[0],".",$parts);
+			$nameObject = $parts[0];
+			$namePOSI = `pointOnCurve -ch on`;
+			$slFlag = 1;
+			$cFlag = 2;
+		}
+	
+		$list = `filterExpand -sm 32`; // Polygon Edge
+		$size = size($list);
+	
+		if ($size == 1)
+		{
+			tokenize($list[0],".",$parts);
+			$nameObject = $parts[0];
+			$namePOSI = `pointOnCurve -ch on`;
+			$slFlag = 1;
+			$cFlag = 3;
+		}
+	
+		if ($slFlag == 0)
+		{	
+			error("No edges or point selected");
+			return "";
+		}
+	}
+	
+	string $nameLocator = `createNode transform -n "hzAttach1"`;
+	createNode locator -n ($nameLocator + "Shape") -p $nameLocator;
+	
+	string $nameAC = `createNode aimConstraint -p $nameLocator -n ($nameLocator + "_hzAttachAimConstraint")`;
+		setAttr ".tg[0].tw" 1;
+		setAttr ".a" -type "double3" 0 1 0;
+		setAttr ".u" -type "double3" 0 0 1;
+		setAttr -k off ".v";
+		setAttr -k off ".tx";
+		setAttr -k off ".ty";
+		setAttr -k off ".tz";
+		setAttr -k off ".rx";
+		setAttr -k off ".ry";
+		setAttr -k off ".rz";
+		setAttr -k off ".sx";
+		setAttr -k off ".sy";
+		setAttr -k off ".sz";
+	
+	if ($cFlag == 0) { // 2 Edges, Surface Point
+	addAttr -ln Tangent -at "enum" -en "V:U:" $nameLocator;
+	setAttr -e -keyable true ($nameLocator + ".Tangent");
+	addAttr -ln "parameterU" -at double $nameLocator;
+	setAttr -e -keyable true ($nameLocator + ".parameterU");
+	addAttr -ln "parameterV" -at double $nameLocator;
+	setAttr -e -keyable true ($nameLocator + ".parameterV");
+	
+	string $nameTDC = `createNode condition -n ($nameLocator + "_TCondition")`;
+	
+	setAttr ($nameTDC + ".secondTerm") 1;
+	setAttr ($nameTDC + ".operation") 0;
+	
+	connectAttr -f ($nameLocator + ".Tangent") ($nameTDC + ".firstTerm");
+	connectAttr -f ($namePOSI + ".tangentU") ($nameTDC + ".colorIfTrue");
+	connectAttr -f ($namePOSI + ".tangentV") ($nameTDC + ".colorIfFalse");
+	
+	$cPr = `getAttr ($namePOSI + ".parameterU")`;
+	setAttr ($nameLocator + ".parameterU") $cPr;
+	connectAttr -f ($nameLocator + ".parameterU") ($namePOSI + ".parameterU");
+	$cPr = `getAttr ($namePOSI + ".parameterV")`;
+	setAttr ($nameLocator + ".parameterV") $cPr;
+	connectAttr -f ($nameLocator + ".parameterV") ($namePOSI + ".parameterV");
+	
+	connectAttr ($namePOSI + ".position") ($nameLocator + ".translate");
+	connectAttr ($namePOSI + ".n") ($nameAC + ".tg[0].tt");
+	
+	connectAttr -f ($nameTDC + ".outColor") ($nameAC + ".worldUpVector");
+	
+	setAttr ($nameLocator + ".Tangent") 1;
+	}
+	
+	else { // 1 Edge, Isoparm, Curve Point
+	connectAttr -f ($namePOSI + ".position") ($nameLocator + ".translate");
+	connectAttr ($namePOSI + ".n") ($nameAC + ".tg[0].tt");
+	connectAttr -f ($namePOSI + ".tangent") ($nameAC + ".worldUpVector");
+	addAttr -ln "parameter" -at double $nameLocator;
+	setAttr -e -keyable true ($nameLocator + ".parameter");
+	connectAttr -f ($nameLocator + ".parameter") ($namePOSI + ".parameter");
+	if ($cFlag == 1) setAttr ($nameLocator + ".parameter") $cPr;
+	if ($cFlag == 2) setAttr ($nameLocator + ".parameter") 0;
+	if ($cFlag == 3) setAttr ($nameLocator + ".parameter") 1.5;
+	}
+	
+	connectAttr ($nameAC + ".crx") ($nameLocator + ".rx");
+	connectAttr ($nameAC + ".cry") ($nameLocator + ".ry");
+	connectAttr ($nameAC + ".crz") ($nameLocator + ".rz");
+	
+	select -r $nameLocator;
+	return ($nameLocator);
+
+} 
+
+////////////////////
+
+global proc smAttrDwn ()
+{    
+	int $v = 0;
+	$sel = `ls -sl`;
+	string $selAttr[] = `channelBox -q -sma mainChannelBox`;
+	if (`size $selAttr` != 1|| `size $sel` != 1)
+	        error "please select only one channel at a time";
+	string $userAttr[] = `listAttr -ud $sel[0]`;
+	if (stringArrayContains($selAttr[0], $userAttr) != 1)
+	        error "sorry cannot move this channel \n";
+	
+	
+	string $hiddenAttr[];
+	for ($ua in $userAttr)
+		{
+		if(`getAttr -k ($sel[0] + "." + $ua)` == `getAttr -cb ($sel[0] + "." + $ua)`)
+			$hiddenAttr[`size $hiddenAttr`] = $ua;
+		}
+	$userAttr = stringArrayRemove($hiddenAttr, $userAttr);
+	
+	int $uds = `size $userAttr`;
+	for ($each in $sel)
+	        {
+		int $index = -1;
+		int $n = 0;
+		if ($v == 1)
+		print ("sel attr " + $selAttr[0] + "\n");
+		for ($ua in $userAttr)
+		       {
+	               if ($ua == $selAttr[0])
+	                        $index = $n;
+	                $n++;
+	                }
+	        if ($v == 1)
+	                {
+	                print ("the attr " + $userAttr[$index] + " is index " + $index + " \n");
+	                print ("the attr +1 = " + $userAttr[$index + 1] + "  \n");
+	                }
+	        if ($index <= $uds)
+	                {
+	                int $a = $index ;
+	                while ($a < $uds)
+	                        {
+	                        if ($userAttr[$a] != $userAttr[$index + 1])
+	                             {
+	                             // get some info about that channel
+	                             string $objAttr = ($each + "." + $userAttr[$a]);
+	                             string $type = `getAttr -type $objAttr`;
+	                             string $enum[];
+	                             	if ($type == "enum")
+	                             		$enum = `attributeQuery -listEnum -node $each $userAttr[$a]`;
+	                             float $min[] = {-3000};
+	                             float $max[] = {3000};
+				if (`attributeQuery -rangeExists -n $each $userAttr[$a]`)
+					{
+					$min = `attributeQuery -min -n $each $userAttr[$a]`;
+					$max = `attributeQuery -max -n $each $userAttr[$a]`;
+					 //string $range = `attributeQuery -range $objAttr`;
+					}
+	    			float $v = `getAttr $objAttr`;
+				float $smin[] = {-2999};
+				float $smax[] = {2999};
+				if (`attributeQuery -softRangeExists -n $each $userAttr[$a]`)
+	    				{
+					$smin = `attributeQuery -smn -n $each $userAttr[$a]`;
+					$smax = `attributeQuery -smx -n $each $userAttr[$a]`;
+					}
+				// names
+				string $longName = `attributeQuery -longName -n $each $userAttr[$a]`;
+				string $shortName = `attributeQuery -shortName -n $each $userAttr[$a]`;
+				string $niceName = `attributeQuery -niceName -n $each $userAttr[$a]`;
+				// connections
+				string $aInputs[] = ` listConnections -p 1 -s 1 -d 0 $objAttr`;
+				string $aOutputs[] = `listConnections -p 1 -s 0 -d 1 $objAttr`;
+	
+				// keyable
+				int $cb = `getAttr -cb $objAttr`;
+				int $k = `getAttr -k $objAttr`;
+				int $l = `getAttr -l $objAttr`;
+				setAttr -k 1 -l 0 -cb 0 $objAttr;
+			       // ----------------------------
+			       if ($v == 1)
+			              {
+			              print ("the is " + $objAttr + " keyable " + $k + " locked " + $l + "\n");
+			              print ("----------- deleting "  + $objAttr + " ------------------\n");
+			              }
+	
+	                             deleteAttr -attribute $userAttr[$a] $each;
+	                             if ($v == 1)
+		               	       print ("-ln " + $userAttr[$a] + " -shortName " + $shortName + " -niceName " + $niceName +" -min " + $min[0] +" -max "+$max[0] + "-smn "+$smin[0]+" -smx "+ $smax[0] + "  -at " +  $type  + "\n");
+	                             addAttr -ln $userAttr[$a] -shortName $shortName -niceName $niceName -min $min[0] -max $max[0] -smn $smin[0] -smx $smax[0] -en $enum[0] -at $type $each ;
+	
+	                             setAttr $objAttr $v;
+				     for ($ao in $aOutputs)
+				     	connectAttr -f $objAttr $ao; 
+				if (`size $aInputs` >= 1)
+					connectAttr -f $aInputs[0] $objAttr;
+	
+	                        setAttr -e -keyable $k -l $l -cb $cb $objAttr;
+	                        }
+	                        else
+	                                print ("skipping " + $userAttr[$a] + "\n");;
+	                        $a++;
+	                        }
+	                }
+	        }
+}
+
+////////////////////
+
+global proc smAttrUp ()
+{
+int $v = 0;
+$sel = `ls -sl`;
+string $selAttr[] = `channelBox -q -sma mainChannelBox`;
+if (`size $selAttr` >= 2 || `size $selAttr` <=0 || `size $sel` != 1)
+        error "please select only one channel at a time";
+
+string $userAttr[] = `listAttr -ud $sel[0]`;
+if (stringArrayContains($selAttr[0], $userAttr) != 1)
+        error "sorry cannot move this channel \n";
+
+string $hiddenAttr[];
+for ($ua in $userAttr)
+	{
+	if(`getAttr -k ($sel[0] + "." + $ua)` == `getAttr -cb ($sel[0] + "." + $ua)`)
+		$hiddenAttr[`size $hiddenAttr`] = $ua;
+	}
+$userAttr = stringArrayRemove($hiddenAttr, $userAttr);
+
+int $uds = `size $userAttr`;
+for ($each in $sel)
+        {
+	int $index = -1;
+	int $n = 0;
+	for ($ua in $userAttr)
+	       {
+               if ($ua == $selAttr[0])
+                        $index = $n;
+                $n++;
+                }
+        if ($v == 1)
+        print ("the attr " + $userAttr[$index] + " is index " + $index + " \n");
+        if ($index >= 1)
+                {
+                int $a = $index - 1;
+                while ($a < $uds)
+                        {
+                        if ($userAttr[$a] != $selAttr[0])
+                             {
+                             // get some info about that channel
+                             string $objAttr = ($each + "." + $userAttr[$a]);
+                             string $type = `getAttr -type $objAttr`;
+                             string $enum[];
+                             	if ($type == "enum")
+                             		$enum = `attributeQuery -listEnum -node $each $userAttr[$a]`;
+                             float $min[] = {-3000};
+                             float $max[] = {3000};
+			if (`attributeQuery -rangeExists -n $each $userAttr[$a]`)
+				{
+				$min = `attributeQuery -min -n $each $userAttr[$a]`;
+				$max = `attributeQuery -max -n $each $userAttr[$a]`;
+				 //string $range = `attributeQuery -range $objAttr`;
+				}
+    			float $v = `getAttr $objAttr`;
+			float $smin[] = {-2999};
+			float $smax[] = {2999};
+			if (`attributeQuery -softRangeExists -n $each $userAttr[$a]`)
+    				{
+				$smin = `attributeQuery -smn -n $each $userAttr[$a]`;
+				$smax = `attributeQuery -smx -n $each $userAttr[$a]`;
+				}
+			// names
+			string $longName = `attributeQuery -longName -n $each $userAttr[$a]`;
+			string $shortName = `attributeQuery -shortName -n $each $userAttr[$a]`;
+			string $niceName = `attributeQuery -niceName -n $each $userAttr[$a]`;
+			// connections
+			string $aInputs[] = ` listConnections -p 1 -s 1 -d 0 $objAttr`;
+			string $aOutputs[] = `listConnections -p 1 -s 0 -d 1 $objAttr`;
+
+			// keyable
+			int $cb = `getAttr -cb $objAttr`;
+			int $k = `getAttr -k $objAttr`;
+			int $l = `getAttr -l $objAttr`;
+			setAttr -k 1 -l 0 -cb 0 $objAttr;
+		       // ----------------------------
+		       if ($v ==1)
+		              {
+		              print ("the is " + $objAttr + " keyable " + $k + " locked " + $l +  "\n");
+		              print ("----------- deleting "  + $objAttr + " ------------------\n");
+		              }
+                             deleteAttr -attribute $userAttr[$a] $each;
+		//	     print ("the attr type is " + $type + "\n");
+                             addAttr -ln $userAttr[$a] -shortName $shortName -niceName $niceName -min $min[0] -max $max[0] -smn $smin[0] -smx $smax[0] -en $enum[0] -at $type $each ;
+                             setAttr $objAttr $v;
+			     for ($ao in $aOutputs)
+			     	connectAttr -f $objAttr $ao;
+			if (`size $aInputs` >= 1)
+				connectAttr -f $aInputs[0] $objAttr;
+
+			setAttr -e -keyable $k -cb $cb -l $l $objAttr;
+
+                        }
+                        else
+                                print ("skipping " + $userAttr[$a] + "\n");;
+                        $a++;
+                        }
+                }
+        }
+}
+
+////////////////////
+/* for correct blendshapes space
+first make all blendshape and target object same pivot on itselves then...
+$l = `ls -sl`;
+for ($a in $l)
+{
+  select -r $a ;
+  float $pos[3];
+  $pos = `xform -q -ws -rp $a`;
+  select -r $a ;
+  select -tgl mainBody_geo ;
+  hzSnap {};
+  select -r $a ;
+  makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;
+  move -os -wd $pos[0] $pos[1] $pos[2];
+  select -cl;
+  //$cmd = ("xform -ws -r -piv "+$pos[0]+" "+ $pos[1]+" "+ $pos[2]+" \""+ $a+ "\"");
+  //evalEcho $cmd;
+}
+
+
+xform -q -ws -rp locator2
+print (27.478043 - 25.545397);
+*/
+////////////////////
+/* for seperate the blendshapes and then make one node for all of them
+$lst = `ls -sl`;
+$bldShps = `ls -typ "blendShape"`;
+$offs = -50;
+for ($bld in $bldShps)
+{
+ $listOfShapesInNode = `listAttr -k -m $bld`;
+ int $i = 1; int $y = 0; int $x = 0; int $row = 10; int $rowCnt = 0;
+		while ($listOfShapesInNode[$i] != "")
+	{
+		setAttr ($bld + "." + $listOfShapesInNode[$i]) 1;
+		select -r $lst[0] ;
+		$dup = `duplicate -rr`;
+		rename $dup "BSO_1";
+		$x = $offs*($i-($rowCnt*$row)) ; 
+		$y = $offs*$rowCnt; 
+		if ($i >= (($rowCnt+1)*$row)) $rowCnt++;
+		move -r -os -wd $x $y 0 ;
+		setAttr ($bld + "." + $listOfShapesInNode[$i]) 0;
+		$i++;
+	}
+}
+*/
+////////////////////
+
+// this procedure will return a list of deformers ordered
+global proc string[] jd_listOfOrderedDeformers () {
+    // initialize
+    $sel = `ls -sl`;
+    if (`size $sel` != 1) {
+        warning -sl 0 "listOfOrderedDeformers requires you to have one (1) object selected!";
+        return {};
+    }
+    $selobj = $sel[0];
+    $shapeList = `listRelatives -type shape`;
+    if (`size $shapeList` < 1) {
+        warning -sl 0 "listOfOrderedDeformers requires you to have one (1) object with a mesh selected!";
+        return {};
+    }
+
+    // get shape name
+    $shape = $shapeList[0];
+
+    // get list of deformers for a the shape
+    string $listOfDefs[];
+    $globallistofdeformers = `ls -type geometryFilter`;
+    for ($each in $globallistofdeformers) {
+        $geo = `deformer -q -g $each`;
+        for ($gtry in $geo) {
+             if ($gtry == $shape) {
+		        $listOfDefs[size($listOfDefs)] = $gtry;
+             }
+	    }
+    }
+
+    // check if there are deformers after all...
+    if (`size $listOfDefs` < 1) {
+        warning -sl 0 "listOfOrderedDeformers found no deformer on the object selected!";
+        return {};
+    }
+
+    $lisofdefssize = `size $listOfDefs`;
+    $listOfGroupIDs = `listConnections -d 0 -t "groupId" $shape`;
+
+    // initialize return variable
+    string $orderedDeformers[];
+    $temp = `listConnections -c 0 -p 0 -s 1 -scn 1 -type geometryFilter ($shape+".inMesh")`;
+    $orderedDeformers[0] = $temp[0];
+
+    // loop and spider through each deformer to find which ones next
+    for ($i = 1;$i<$lisofdefssize;$i++) {
+        $listofgroups = `listConnections -d 0 -t "groupParts" $orderedDeformers[$i-1] `;
+        if (`size $listofgroups`>0) {
+            string $connected;
+            for ($group in $listofgroups) {
+                int $itDeforms = 0;
+                while ($itDeforms < 1) {
+                    $connectedTMP = `listConnections ($group+".inputGeometry")`;
+                    $connected = $connectedTMP[0];
+                    if (`stringArrayContains $connected $globallistofdeformers`) {
+                        $itDeforms = 1;
+                    } else {
+                        $group = $connected;
+                    }
+
+                }
+                $connectedGroupIDTMP = `listConnections ($group+".groupId")`;
+                $connectedGroupID = $connectedGroupIDTMP[0];
+                if (`stringArrayContains $connectedGroupID $listOfGroupIDs`) {
+                    $orderedDeformers[$i] = $connected;
+                }
+
+            }
+        } else {
+            $connectedToInputGeometry = `listConnections  -type geometryFilter -d 0 ($orderedDeformers[$i-1]+".input[0].inputGeometry")`;
+            $orderedDeformers[$i] = $connectedToInputGeometry[0];
+        }
+    }
+    return $orderedDeformers;
+}
+
+// this will pop a gui that will help you reorder deformers
+global proc int jd_reorderDeformersGUI () {
+    if (`waitCursor -q -state` == 1) waitCursor -state 0;
+    // initialize variables
+    global int $jd_reorderDeformersScriptJobIndex;
+    global string $jd_reorderDeformersGUI;
+    $objsel = `ls -sl`;
+    $obj = $objsel[0];
+
+    // make sure you have something selected
+    if (`size $objsel` >0) $shape = `listRelatives -s $obj`;
+
+    // initialize window
+    if (`window -exists $jd_reorderDeformersGUI`) deleteUI $jd_reorderDeformersGUI;
+    $jd_reorderDeformersGUI = `window -t ("[JD] Reorder Deformer's on "+$obj)`;
+
+    // list deformers on mesh
+    $list = `jd_listOfOrderedDeformers`;
+    $slist = `size $list`;
+    if ($slist < 2) {
+        print ("[JD]Reorder Deformer: Less than two deformers found on selected object: "+$obj+"\n");
+    }
+    // create numbered arrays for text labels and up and down buttons
+    string $thisFrame[];
+    string $thisForm[];
+    string $textArray[];
+    string $upButArray[];
+    string $downButArray[];
+    $hmargin = 5;
+    $fmargin = 0;
+    $butmargin = 1;
+
+    if ($slist > 0) {
+        // initialize form layout and its elements
+        $form = `formLayout -numberOfDivisions ($slist)`;
+
+        for ($i=0;$i<$slist;$i++) {
+            //commands to assign
+            string $upC, $downC;
+            if ($i>0) $upC = ("reorderDeformers "+$list[$i]+" "+$list[$i-1]+" "+$shape[0]+" ; waitCursor -state 1; jd_reorderDeformer; ");
+            if ($i<($slist-1)) $downC = ("reorderDeformers "+$list[$i+1]+" "+$list[$i]+" "+$shape[0]+" ;  waitCursor -state 1; jd_reorderDeformer; ");
+
+            $thisFrame[$i] = `frameLayout -bv 0 -lv 0 -p $form `;
+            $thisForm[$i] = `formLayout -p $thisFrame[$i] -numberOfDivisions 4`;
+            $textArray[$i] = `text -p $thisForm[$i] -label (($i+1)+". "+$list[$i])`;
+            $upButArray[$i] = `button -p $thisForm[$i] -label  "up" -c $upC`;
+            $downButArray[$i] = `button -p $thisForm[$i] -label "down" -c $downC`;
+
+            // turn off buttons that are on top or below everything
+            if ($i == 0) button -e -l "" -en 0 $upButArray[$i];
+            if ($i == ($slist-1)) button -e -l "" -en 0 $downButArray[$i];
+
+            formLayout -e
+                -attachForm     $downButArray[$i] "bottom" $hmargin
+                -attachPosition $downButArray[$i] "top" $butmargin 2
+                -attachOppositeForm  $downButArray[$i] "left" -50
+                -attachForm     $downButArray[$i] "right" $hmargin
+
+                -attachForm     $upButArray[$i] "top" $hmargin
+                -attachPosition $upButArray[$i] "bottom" $butmargin 2
+                -attachOppositeForm  $upButArray[$i] "left" -50
+                -attachForm     $upButArray[$i] "right" $hmargin
+
+                -attachForm     $textArray[$i] "top" $hmargin
+                -attachForm     $textArray[$i] "bottom" $hmargin
+                -attachForm     $textArray[$i] "left" $hmargin
+                -attachControl  $textArray[$i] "right" $hmargin $upButArray[$i]
+
+                $thisForm[$i];
+
+        }
+
+        formLayout -e
+            -attachForm $thisFrame[0] "top" $fmargin
+            -attachForm $thisFrame[0] "left" 0
+            -attachForm $thisFrame[0] "right" 0
+            -attachPosition $thisFrame[0] "bottom" $fmargin 1
+            $form;
+
+        for ($i=1;$i<$slist;$i++) {
+                formLayout -e
+                    -attachPosition $thisFrame[$i] "top" $fmargin ($i)
+                    -attachForm $thisFrame[$i] "left" 0
+                    -attachForm $thisFrame[$i] "right" 0
+                    -attachPosition $thisFrame[$i] "bottom" $fmargin ($i+1)
+                    $form;
+        }
+    } else {
+        $closeCommand = ("deleteUI "+$jd_reorderDeformersGUI);
+        $closeForm = `formLayout -p $jd_reorderDeformersGUI -numberOfDivisions 5`;
+        $closeText = `text -w 350 -label "Must have at least one object with at least two deformers selected." -p $closeForm`;
+        $closeButton = `button -w 350 -l "close" -p $closeForm -c $closeCommand`;
+        formLayout -e
+            -attachForm $closeText "top" 5
+            -attachForm $closeText "left" 5
+            -attachForm $closeText "right" 5
+
+            -attachControl $closeButton "top" 5 $closeText
+            -attachForm $closeButton "left" 5
+            -attachForm $closeButton "right" 5
+            -attachForm $closeButton "bottom" 5
+
+            $closeForm;
+    }
+    showWindow $jd_reorderDeformersGUI;
+    if ($slist == 0) {
+        window -e -topLeftCorner 200 200 -h 100 -w 360 $jd_reorderDeformersGUI;
+    } else {
+        window -e -topLeftCorner 200 200 -w 1 -h (clamp(1,$slist,$slist) * 25) $jd_reorderDeformersGUI;
+    }
+
+    return 1;
+}
+
+global proc jd_reorderDeformer () {
+    global int $jd_reorderDeformerScriptJobIndex;
+    global int $jd_reorderDeformerScriptJobIndex2;
+    global string $jd_reorderDeformersGUI;
+    jd_reorderDeformersGUI;
+    $jd_reorderDeformerScriptJobIndex = `scriptJob -p $jd_reorderDeformersGUI -runOnce 1 -e "SelectionChanged" "jd_reorderDeformer"`;
+}
+
+
+////////////////////
+
+global proc hzSnap(string $selection[])
+{
+	int $cnt = size($selection);
+	if ($cnt == 0)
+	{
+		$selection = `ls -sl`;
+		$cnt = size($selection);
+	}
+	if ($cnt == 0) return;
+		
+	$master = $selection[--$cnt];
+	while ($cnt-->0)
+	{
+    string $oCons[] = `orientConstraint -w 1 $master $selection[$cnt]` ;
+	  string $pCons[] = `pointConstraint -w 1 $master $selection[$cnt]` ;
+  	refresh;
+    delete $oCons ;
+	  delete $pCons ;
+	}
+  //select -r $selection ;
+}
+
+////////////////////
