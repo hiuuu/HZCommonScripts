@@ -51,10 +51,10 @@ def setKframes(*args):
         return
     for f in frms:
         mc.setKeyframe(t=(f,), shape=0, ott='linear', itt='linear',*cam)
-    mc.playbackOptions(animationStartTime=min(frms))
-    mc.playbackOptions(animationEndTime=max(frms))
-    mc.playbackOptions(minTime=min(frms))
-    mc.playbackOptions(maxTime=max(frms))
+    # mc.playbackOptions(animationStartTime=min(frms))
+    # mc.playbackOptions(animationEndTime=max(frms))
+    # mc.playbackOptions(minTime=min(frms))
+    # mc.playbackOptions(maxTime=max(frms))
     mc.currentTime(frms[0]) 
     mc.select(cam, r=1)
 
