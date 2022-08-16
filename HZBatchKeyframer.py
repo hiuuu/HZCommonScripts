@@ -43,8 +43,9 @@ def setKframes(*args):
     if not cam: 
         mc.warning("select objects")
         return
-    excelcopypaste = mc.scrollField( "excelPaste",q=1, text=1)
-    frms = [int(f) for f in re.findall("\d+", excelcopypaste)].sort()
+    excelcopypaste = (mc.scrollField( "excelPaste",q=1, text=1))
+    frms = [int(round(float(f))) for f in re.findall("\d+\.\d+|\d+", excelcopypaste)]
+    frms.sort()
     if not frms:
         mc.warning("no frame number found!")
         return
@@ -61,6 +62,11 @@ def hzasgFrms(*args):
     mc.scrollField("excelPaste", e=1, cl=True)
     mc.scrollField("excelPaste", e=1, text=get_clipboard_text())
 
+def hzgetFrms(*args):
+    mc.scrollField("excelPaste", e=1, cl=True)
+    frmlst = mc.keyframe( mc.ls(sl=1,head=1),t=(), query=True, tc=True )
+    mc.scrollField("excelPaste", e=1, text=' '.join(map(str,frmlst)))
+
 def hzasgNodes(*args):
     sl=mc.ls(sl=1, ni=True, o=True, r=True)
     mc.textScrollList("objsName", e=1, removeAll=True)
@@ -76,7 +82,7 @@ def hznodesDelItem( *args):
 def showUI():    
     mc.window(title="Batch Keyframes", mxb=0, sizeable=0)
     mc.columnLayout(adjustableColumn=True, rowSpacing=5, columnOffset=['both',5])
-    mc.text(l='H.Z. Batch Set Keyframes v1.0\n\n1.Choose Objects \n2.Paste or type frame numbers \n3.Hit the set button.' , 
+    mc.text(l='H.Z. Batch Set Keyframes v1.1\n\n1.Choose Objects \n2.Paste or type frame numbers \n3.Hit the set button.' , 
             align='left', font='boldLabelFont')
     mc.separator(20)
     mc.textScrollList("objsName", h=50)
@@ -84,6 +90,7 @@ def showUI():
     mc.separator(20)
     mc.scrollField( "excelPaste", h=100, editable=True, wordWrap=False )
     mc.button(l="^^^ Paste Frame Numbers ^^^", h=20, c=hzasgFrms)
+    mc.button(l="^^^ Get Frame Numbers from Selected ^^^", h=20, c=hzgetFrms)
     mc.separator(20)
     mc.button(l="SET Keyframes", h=50, c=setKframes)
     mc.separator()
