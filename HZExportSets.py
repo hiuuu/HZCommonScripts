@@ -1,4 +1,4 @@
-
+import maya.cmds as cmds
 def getSetChild(parentset):
     cmds.select(parentset, noExpand=True, r=1)
     set1 = cmds.ls(selection=True, type="objectSet")[0]
