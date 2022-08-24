@@ -1,0 +1,123 @@
+/*****************************************************************
+HZRandomizer.mel
+*****************************************************************/
+
+global proc HZRandomizer()
+{
+	if(`window -exists wndHZRandomizer`)
+		deleteUI wndHZRandomizer;
+
+window -title "HZRandomizer"  wndHZRandomizer;
+
+columnLayout;
+button -l "Randomize" -w 180 -c "randomize()";
+text "Attribute Name:";
+textField -w 180 attName;
+
+gridLayout -numberOfColumns 4 -cellWidthHeight 45 20;
+
+text -l "Min:";
+text -l "Max:";
+text -l "Start:";
+text -l "End:";
+textField -w 45 nVal;
+textField -w 45 mVal; 
+textField -w 45 sFrame;
+textField -w 45 eFrame;
+text -l "Events:";
+text -l "Point Val:";
+text -l "Spacing:";
+text -l "";//text -l "End Val:" ;
+textField -w 45 nEvents;
+textField -w 45 sVal; 
+textField -w 45 spacer;
+text -l "";//textField -w 45 eVal;
+
+setParent..;
+setParent..;
+showWindow wndHZRandomizer;
+} //end proc
+
+global proc randomize()
+{
+
+string $attributeName = `textField -q -text attName`;
+
+  string $tokenizedattributeList[];
+  tokenizeList($attributeName, $tokenizedattributeList);
+
+float $startVal = `textField -q -text sVal`; 
+//float $endVal = `textField -q -text eVal`;
+float $maxVal = `textField -q -text mVal`; 
+float $minVal = `textField -q -text nVal`;
+int $startFrame = `textField -q -text sFrame`;
+int $endFrame = `textField -q -text eFrame`;
+int $numEvents = `textField -q -text nEvents`;
+int $spacer = `textField -q -text spacer`;
+float $numFrames = $endFrame - $startFrame;
+float $spaceCheck = $spacer * $numEvents;
+float $animCheck = $numFrames - $spaceCheck;
+float $paramCheck = size($tokenizedattributeList) % 2 ;
+
+
+if($animCheck < 1)
+{
+print("Length of Random animation insufficient for event spacing and number of events. Try decreasing number of events and/or spacing.");
+}
+else if($paramCheck != 0 || size($tokenizedattributeList) == 0)
+{
+print("Length of attributes error. Must be even");
+}
+
+
+else
+{
+  int $i = 0;
+	int $looper=0;
+	float $randVal;
+	float $frame;
+	float $maxSpace, $leeway, $minFrame, $maxFrame;
+
+	if ($numEvents == 0) $numEvents = ceil($numFrames / 4);
+	$maxSpace = $numFrames / $numEvents;
+	$leeway = $maxSpace - $spacer;
+	$frame = $startFrame;
+  
+  for ($i=0;$i<size($tokenizedattributeList);$i+=2)
+  {
+     string $attributeName = $tokenizedattributeList[$i];
+  
+	   currentTime $startFrame;
+	   setAttr $attributeName $startVal;
+	   setKeyframe $attributeName;
+	
+	   currentTime $endFrame;
+	   setAttr $attributeName $startVal;
+	   setKeyframe $attributeName;
+  }
+  $i = 0;
+  while($looper < $numEvents)
+  {
+   $frame += $maxSpace;
+   $minFrame = $frame - $spacer;
+   $maxFrame = $frame + $spacer;   
+   $frame = rand($minFrame, $maxFrame);  
+   for ($i=0;$i<size($tokenizedattributeList);$i+=2)
+   {
+     string $attributeName = $tokenizedattributeList[$i];
+     float $percent = $tokenizedattributeList[$i+1];
+     $randVal = rand($minVal, $maxVal) * $percent;
+  
+     currentTime $frame;
+     if (($looper % 2) == 0)
+       setAttr $attributeName $randVal;
+     else
+       setAttr $attributeName $startVal ;
+     setKeyframe $attributeName;
+	 }
+   $looper++;
+}
+
+} //end else
+
+} //end proc

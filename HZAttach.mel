@@ -1,0 +1,209 @@
+// --------------------------------------------------------------------------
+// HZAttach.mel - MEL Script
+// --------------------------------------------------------------------------
+//
+// DESCRIPTION:
+//	Use "HZAttach" to constrain locator to polygon or NURBS surfaces.
+//	Select two edges on polygon object
+//	or select one point on NURBS surface and call hzAttach
+//	Parent your hzAttachs and buttons to this locator
+//
+//
+// REQUIRES:
+//	Nothing.
+//	
+//
+// USAGE:
+//	source "HZAttach.mel";  HZAttach() ;
+//
+//
+// AUTHORS:
+//	Hamed Zandieh - h.zandieh@gmail.com
+//	Copyright 2009 Hamed Zandieh - All Rights Reserved.
+//
+// VERSIONS:
+//	1.00 - August 2009 - Initial Release.
+//
+// --------------------------------------------------------------------------
+
+global proc string HZAttach ( )
+{
+
+string $nameObject;
+string $namePOSI;
+
+string $parts[];
+string $list[] = `filterExpand -sm 32`; // Polygon Edges 
+
+int $size = size($list);
+int $slFlag = 0, $cFlag = 0;
+
+float $cPr = 0;
+
+if ($size == 2)
+{
+	tokenize($list[0],".",$parts);
+	$nameObject = $parts[0];
+	tokenize($list[0],"[]",$parts);
+	float $e1 = $parts[1];
+	tokenize($list[1],"[]",$parts);
+	float $e2 = $parts[1];
+
+	string $nameCFME1 = `createNode curveFromMeshEdge -n "hzAttachCurveFromMeshEdge1"`;
+		setAttr ".ihi" 1;
+		setAttr ".ei[0]"  $e1;
+	string $nameCFME2 = `createNode curveFromMeshEdge -n "hzAttachCurveFromMeshEdge2"`;
+		setAttr ".ihi" 1;
+		setAttr ".ei[0]"  $e2;
+	string $nameLoft = `createNode loft -n "hzAttachLoft1"`;
+		setAttr -s 2 ".ic";
+		setAttr ".u" yes;
+		setAttr ".rsn" yes;
+
+	$namePOSI = `createNode pointOnSurfaceInfo -n "hzAttachPointOnSurfaceInfo1"`;
+		setAttr ".turnOnPercentage" 1;
+		setAttr ".parameterU" 0.5;
+		setAttr ".parameterV" 0.5;
+
+	connectAttr -f ($nameLoft + ".os") ($namePOSI + ".is");
+	connectAttr ($nameCFME1 + ".oc") ($nameLoft + ".ic[0]");
+	connectAttr ($nameCFME2 + ".oc") ($nameLoft + ".ic[1]");
+	connectAttr ($nameObject + ".w") ($nameCFME1 + ".im");
+	connectAttr ($nameObject + ".w") ($nameCFME2 + ".im");
+}
+
+else if ($size < 2)
+{
+	$list = `filterExpand -sm 41`; // Surface Parameter Points 
+	$size = size($list); 
+
+	if ($size == 1)
+	{
+		tokenize($list[0],".",$parts);
+		$nameObject = $parts[0];
+		tokenize($list[0],"[]",$parts);
+		float $u = $parts[1];
+		float $v = $parts[2];
+		$namePOSI = `createNode pointOnSurfaceInfo -n "hzAttachPointOnSurfaceInfo1"`;
+				setAttr ".turnOnPercentage" 0;
+				setAttr ".parameterU" $u;
+				setAttr ".parameterV" $v;
+		connectAttr -f ($nameObject + ".ws") ($namePOSI + ".is");
+		$slFlag = 1;
+	}
+
+	$list = `filterExpand -sm 39`; // Curve Parameter Points
+	$size = size($list);
+
+	if ($size == 1)
+	{
+		tokenize($list[0],".",$parts);
+		$nameObject = $parts[0];
+		tokenize($list[0],"[]",$parts);
+		$cPr = $parts[1];
+		$namePOSI = `pointOnCurve -ch on`;
+		$slFlag = 1;
+		$cFlag = 1;
+	}
+
+	$list = `filterExpand -sm 45`; // Surface Isoparms 
+	$size = size($list);
+
+	if ($size == 1)
+	{
+		tokenize($list[0],".",$parts);
+		$nameObject = $parts[0];
+		$namePOSI = `pointOnCurve -ch on`;
+		$slFlag = 1;
+		$cFlag = 2;
+	}
+
+	$list = `filterExpand -sm 32`; // Polygon Edge
+	$size = size($list);
+
+	if ($size == 1)
+	{
+		tokenize($list[0],".",$parts);
+		$nameObject = $parts[0];
+		$namePOSI = `pointOnCurve -ch on`;
+		$slFlag = 1;
+		$cFlag = 3;
+	}
+
+	if ($slFlag == 0)
+	{	
+		error("No edges or point selected");
+		return "";
+	}
+}
+
+string $nameLocator = `createNode transform -n "hzAttach1"`;
+createNode locator -n ($nameLocator + "Shape") -p $nameLocator;
+
+string $nameAC = `createNode aimConstraint -p $nameLocator -n ($nameLocator + "_hzAttachAimConstraint")`;
+	setAttr ".tg[0].tw" 1;
+	setAttr ".a" -type "double3" 0 1 0;
+	setAttr ".u" -type "double3" 0 0 1;
+	setAttr -k off ".v";
+	setAttr -k off ".tx";
+	setAttr -k off ".ty";
+	setAttr -k off ".tz";
+	setAttr -k off ".rx";
+	setAttr -k off ".ry";
+	setAttr -k off ".rz";
+	setAttr -k off ".sx";
+	setAttr -k off ".sy";
+	setAttr -k off ".sz";
+
+if ($cFlag == 0) { // 2 Edges, Surface Point
+addAttr -ln Tangent -at "enum" -en "V:U:" $nameLocator;
+setAttr -e -keyable true ($nameLocator + ".Tangent");
+addAttr -ln "parameterU" -at double $nameLocator;
+setAttr -e -keyable true ($nameLocator + ".parameterU");
+addAttr -ln "parameterV" -at double $nameLocator;
+setAttr -e -keyable true ($nameLocator + ".parameterV");
+
+string $nameTDC = `createNode condition -n ($nameLocator + "_TCondition")`;
+
+setAttr ($nameTDC + ".secondTerm") 1;
+setAttr ($nameTDC + ".operation") 0;
+
+connectAttr -f ($nameLocator + ".Tangent") ($nameTDC + ".firstTerm");
+connectAttr -f ($namePOSI + ".tangentU") ($nameTDC + ".colorIfTrue");
+connectAttr -f ($namePOSI + ".tangentV") ($nameTDC + ".colorIfFalse");
+
+$cPr = `getAttr ($namePOSI + ".parameterU")`;
+setAttr ($nameLocator + ".parameterU") $cPr;
+connectAttr -f ($nameLocator + ".parameterU") ($namePOSI + ".parameterU");
+$cPr = `getAttr ($namePOSI + ".parameterV")`;
+setAttr ($nameLocator + ".parameterV") $cPr;
+connectAttr -f ($nameLocator + ".parameterV") ($namePOSI + ".parameterV");
+
+connectAttr ($namePOSI + ".position") ($nameLocator + ".translate");
+connectAttr ($namePOSI + ".n") ($nameAC + ".tg[0].tt");
+
+connectAttr -f ($nameTDC + ".outColor") ($nameAC + ".worldUpVector");
+
+setAttr ($nameLocator + ".Tangent") 1;
+}
+
+else { // 1 Edge, Isoparm, Curve Point
+connectAttr -f ($namePOSI + ".position") ($nameLocator + ".translate");
+connectAttr ($namePOSI + ".n") ($nameAC + ".tg[0].tt");
+connectAttr -f ($namePOSI + ".tangent") ($nameAC + ".worldUpVector");
+addAttr -ln "parameter" -at double $nameLocator;
+setAttr -e -keyable true ($nameLocator + ".parameter");
+connectAttr -f ($nameLocator + ".parameter") ($namePOSI + ".parameter");
+if ($cFlag == 1) setAttr ($nameLocator + ".parameter") $cPr;
+if ($cFlag == 2) setAttr ($nameLocator + ".parameter") 0;
+if ($cFlag == 3) setAttr ($nameLocator + ".parameter") 1.5;
+}
+
+connectAttr ($nameAC + ".crx") ($nameLocator + ".rx");
+connectAttr ($nameAC + ".cry") ($nameLocator + ".ry");
+connectAttr ($nameAC + ".crz") ($nameLocator + ".rz");
+
+select -r $nameLocator;
+return ($nameLocator);
+
+} 

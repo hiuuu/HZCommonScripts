@@ -1,0 +1,31 @@
+/// Hamed Zandieh : Sence Smooth v1.00
+
+
+string $selected[] = `ls -sl`;
+string $list[] = {};
+int $i = 0;
+for ($o in $selected){
+    $smoothNod = `polySmooth  -mth 0 -dv 1 -c 1 -kb 1 -ksb 1 -khe 0 -kt 1 -kmb 1 -suv 1 -peh 0 -sl 1 -dpe 1 -ps 0.1 -ro 1 -ch 1 ($o)`;
+    $list[$i++] = $smoothNod[0];
+}
+
+$shareNode = `createNode "transform" -n "HZ_SenceSmoothDivisionNode"`;
+setAttr -lock true -keyable false -channelBox false ($shareNode+".tx");
+setAttr -lock true -keyable false -channelBox false ($shareNode+".ty");
+setAttr -lock true -keyable false -channelBox false ($shareNode+".tz");
+setAttr -lock true -keyable false -channelBox false ($shareNode+".rx");
+setAttr -lock true -keyable false -channelBox false ($shareNode+".ry");
+setAttr -lock true -keyable false -channelBox false ($shareNode+".rz");
+setAttr -lock true -keyable false -channelBox false ($shareNode+".sx");
+setAttr -lock true -keyable false -channelBox false ($shareNode+".sy");
+setAttr -lock true -keyable false -channelBox false ($shareNode+".sz");
+setAttr ($shareNode+".visibility") 0;
+setAttr -lock true ($shareNode+".v");
+addAttr -ln "division"  -at long  -min 0 -max 3 -dv 0 ($shareNode);
+setAttr -e-keyable true ($shareNode+".division");
+for ($sm in $list){
+    connectAttr -f ($shareNode+".division") ($sm+".divisions");
+}
+select -cl;
+select ($shareNode);
+print "DONE";

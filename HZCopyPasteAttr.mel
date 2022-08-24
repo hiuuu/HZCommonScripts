@@ -1,0 +1,95 @@
+// --------------------------------------------------------------------------
+// HZCopyPasteAttr.mel - MEL Script
+// --------------------------------------------------------------------------
+//
+// DESCRIPTION:
+//	by using this tool you can copy attribute values from selected object to 
+//	own clipboard. if any attribute selected in channelbox this script copy selected ones
+//  otherwise copy all attributes on channelbox
+//
+//
+// REQUIRES:
+//	Nothing.
+//	
+//
+// USAGE:
+//	source "HZCopyPasteAttr.mel";  HZCopyAttr();  OR  HZPasteAttr();
+//
+//
+// AUTHORS:
+//	Hamed Zandieh - h.zandieh@gmail.com
+//	Copyright 2010 Hamed Zandieh - All Rights Reserved.
+//
+// VERSIONS:
+//	1.00 - Mar 2010 - Initial Release.
+//
+// --------------------------------------------------------------------------
+
+global string $HZCopyAttr_HOLDER;
+global proc HZCopyAttr()
+{
+	string $objs[] = `ls -sl`;
+	string $selectedAttrs[] = `channelBox -q -sma mainChannelBox`;
+	string $allAttrs[] = `listAttr -k`;
+	if (size($objs) == 0) 
+	{
+		print "Please Selected at least one object.";
+		return;
+	}
+	if (size($selectedAttrs) > 0)
+	{
+		hz_fill_clipboard($objs[0],$selectedAttrs);
+	} else {
+		hz_fill_clipboard($objs[0],$allAttrs);
+	}
+	print "Attributes Copy Done.";
+}
+
+global proc hz_fill_clipboard(string $obj, string $arr[])
+{
+	global string $HZCopyAttr_HOLDER;
+	$HZCopyAttr_HOLDER = "";
+	for ($node in $arr)
+	{
+		float $objAttr = `getAttr ($obj + "." + $node)`;
+		$HZCopyAttr_HOLDER += $node + ":" + $objAttr + ",";
+	}
+}
+
+global proc HZPasteAttr()
+{
+	global string $HZCopyAttr_HOLDER;
+	if ($HZCopyAttr_HOLDER == "") 
+	{
+		print "Empy Clipboard!";
+		return;
+	}
+	string $objs[] = `ls -sl`;
+	if (size($objs) == 0) 
+	{
+		print "Please Selected at least one object.";
+		return;
+	}
+	string $buffer1[];
+	int $numTokens1 = `tokenize $HZCopyAttr_HOLDER "," $buffer1`;
+	if ($numTokens1 < 1)
+	{
+		print "Invalid Clipboard!!!";
+		return;
+	}
+	for ($attr in $buffer1)
+	{
+		string $buffer2[];
+		int $numTokens2 = `tokenize $attr ":" $buffer2`;
+		if ($numTokens2 < 2)
+		{
+			print "Invalid Clipboard!!!";
+			return;
+		}
+		$isExists = `attributeQuery -node ($objs[0]) -ex ($buffer2[0])`;
+		$isWritable = `attributeQuery -node ($objs[0]) -w ($buffer2[0])`;
+		if ($isExists == 0 || $isWritable == 0) continue;
+		eval("setAttr "+$objs[0]+"."+$buffer2[0]+" "+$buffer2[1]);
+	}
+	print "Attributes Paste Done.";
+}
