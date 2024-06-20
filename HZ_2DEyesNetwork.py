@@ -160,6 +160,7 @@ for side in "RL":
             cmds.setDrivenKeyframe( '%s.offsetV'%eye2D_col_p2d,cd='%s.map'%eye_ctl,itt='linear',ott='step', dv=(j*k), v=(valV) )
             i += 1
         j += 1
+    cmds.setAttr("%s.visibility"%eye2D_col_tex, 0)
     if side == "L":
         cmds.setAttr("%s.sx"%eye2D_col_tex, -1)
 
@@ -209,6 +210,7 @@ for side in "RL":
         cmds.connectAttr("%s.outColor"%sec_ramp, "%s.transparency"%sec_prj)
         cmds.connectAttr("%s.outUV"%sec_p2d, "%s.uvCoord"%sec_ramp)
         cmds.connectAttr("%s.outUvFilterSize"%sec_p2d, "%s.uvFilterSize"%sec_ramp)
+        cmds.setAttr("%s.visibility"%sec_tex, 0)
         if secIndex == 0 :  #"specA":
             cmds.setAttr("%s.invert"%sec_prj, 1)
             cmds.setAttr("%s.colorEntryList[1].position"%sec_ramp, 0.2)
@@ -216,6 +218,7 @@ for side in "RL":
             cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgg"%sec_ramp)
             cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgb"%sec_ramp) 
             cmds.parent( sec_tex, specA_ctl )          
+            cmds.parent( specA_ctl, eye_ctl )          
         elif secIndex == 1 :  #"specB":
             cmds.setAttr("%s.invert"%sec_prj, 1)
             cmds.setAttr("%s.colorEntryList[1].position"%sec_ramp, 0.17)
@@ -223,6 +226,7 @@ for side in "RL":
             cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgg"%sec_ramp)
             cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgb"%sec_ramp)
             cmds.parent( sec_tex, specB_ctl )
+            cmds.parent( specB_ctl, eye_ctl )
         elif secIndex == 2 :  #"popil":
             cmds.setAttr("%s.colorEntryList[1].position"%sec_ramp, 0.7) 
             cmds.setAttr("%s.translateFrame"%sec_p2d, 0.15, 0, type="float2")
@@ -230,3 +234,13 @@ for side in "RL":
             cmds.parent( sec_tex, eye_ctl )
 
 
+pp_geo = cmds.polyPlane(cuv=2, sy=10, sx=10, h=1, ch=1, w=1, ax=(0, 1, 0))
+cmds.setAttr("%s.rotateX"%pp_geo[0], 90)
+cmds.setAttr("%s.subdivisionsWidth"%pp_geo[1], 3)
+cmds.setAttr("%s.subdivisionsHeight"%pp_geo[1], 3)
+cmds.setAttr("%s.width"%pp_geo[1], 8)
+cmds.setAttr("%s.height"%pp_geo[1], 8)
+cmds.sets(forceElement='eyesLayeredShader12SG', e=1)
+cmds.move( -1.5, 0, 0,'eye_R_ctl', r=1, os=1, wd=1)
+cmds.move( 1.5, 0, 0, 'eye_L_ctl', r=1, os=1, wd=1)
+cmds.select(cl=1)
