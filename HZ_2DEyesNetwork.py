@@ -236,7 +236,7 @@ for side in "RL":
 
 pp_geo,_  = cmds.polyPlane(cuv=2, sy=3, sx=3, h=8, ch=1, w=8, ax=(0, 1, 0))
 cmds.setAttr("%s.rotateX"%pp_geo, 90)
-cmds.sets(forceElement='eyesLayeredShader12SG', e=1)
+cmds.sets(forceElement='%s2SG'%eyesLayeredShader, e=1)
 cmds.move( -1.5, 0, 0,'eye_R_ctl', r=1, os=1, wd=1)
 cmds.move( 1.5, 0, 0, 'eye_L_ctl', r=1, os=1, wd=1)
 cmds.select(cl=1)
