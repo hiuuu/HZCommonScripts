@@ -153,15 +153,15 @@ for side in "RL":
         cmds.connectAttr("%s.vc1"%eye2D_col_p2d, "%s.vc1"%fiNode)
         cmds.connectAttr("%s.o"%eye2D_col_p2d, "%s.uv"%fiNode)
         cmds.connectAttr("%s.ofs"%eye2D_col_p2d, "%s.fs"%fiNode)
-    i = 0
-    j = 0
-    k = len(eyesValsU)
+    i,j,k = (0,0,len(eyesValsU))
     for valV in eyesValsV:
         for valU in eyesValsU:
             cmds.setDrivenKeyframe( '%s.offsetU'%eye2D_col_p2d,cd='%s.map'%eye_ctl,itt='linear',ott='step', dv=(i), v=(valU) )
             cmds.setDrivenKeyframe( '%s.offsetV'%eye2D_col_p2d,cd='%s.map'%eye_ctl,itt='linear',ott='step', dv=(j*k), v=(valV) )
             i += 1
         j += 1
+    if side == "L":
+        cmds.setAttr("%s.sx"%eye2D_col_tex, -1)
 
     #########################################
     ### 2D eyes Popil and Speculars Setup ###
@@ -209,25 +209,24 @@ for side in "RL":
         cmds.connectAttr("%s.outColor"%sec_ramp, "%s.transparency"%sec_prj)
         cmds.connectAttr("%s.outUV"%sec_p2d, "%s.uvCoord"%sec_ramp)
         cmds.connectAttr("%s.outUvFilterSize"%sec_p2d, "%s.uvFilterSize"%sec_ramp)
-        if secIndex == 0: #specA
+        if secIndex == 0 :  #"specA":
+            cmds.setAttr("%s.invert"%sec_prj, 1)
             cmds.setAttr("%s.colorEntryList[1].position"%sec_ramp, 0.2)
             cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgr"%sec_ramp)
             cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgg"%sec_ramp)
             cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgb"%sec_ramp) 
             cmds.parent( sec_tex, specA_ctl )          
-        elif secIndex == 1: #specB
+        elif secIndex == 1 :  #"specB":
+            cmds.setAttr("%s.invert"%sec_prj, 1)
             cmds.setAttr("%s.colorEntryList[1].position"%sec_ramp, 0.17)
             cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgr"%sec_ramp)
             cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgg"%sec_ramp)
             cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgb"%sec_ramp)
             cmds.parent( sec_tex, specB_ctl )
-        elif secIndex == 2: #popil
+        elif secIndex == 2 :  #"popil":
             cmds.setAttr("%s.colorEntryList[1].position"%sec_ramp, 0.7) 
             cmds.setAttr("%s.translateFrame"%sec_p2d, 0.15, 0, type="float2")
             cmds.setAttr("%s.coverage"%sec_p2d,  0.75, 1, type="float2")
             cmds.parent( sec_tex, eye_ctl )
-
-
-
 
 
