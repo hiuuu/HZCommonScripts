@@ -153,10 +153,11 @@ for side in "RL":
         cmds.connectAttr("%s.vc1"%eye2D_col_p2d, "%s.vc1"%fiNode)
         cmds.connectAttr("%s.o"%eye2D_col_p2d, "%s.uv"%fiNode)
         cmds.connectAttr("%s.ofs"%eye2D_col_p2d, "%s.fs"%fiNode)
-    i,j = 0
+    i = 0
+    j = 0
     k = len(eyesValsU)
-    for valV in (eyesValsV):
-        for valU in (eyesValsU):
+    for valV in eyesValsV:
+        for valU in eyesValsU:
             cmds.setDrivenKeyframe( '%s.offsetU'%eye2D_col_p2d,cd='%s.map'%eye_ctl,itt='linear',ott='step', dv=(i), v=(valU) )
             cmds.setDrivenKeyframe( '%s.offsetV'%eye2D_col_p2d,cd='%s.map'%eye_ctl,itt='linear',ott='step', dv=(j*k), v=(valV) )
             i += 1
