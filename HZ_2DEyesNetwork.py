@@ -104,6 +104,8 @@ for pos in "UD":
     posIndex += 1
     eyelash_ctl = cmds.createNode('transform', parent=grp, name="eyeLash_%s_ctl"%pos)
     cmds.addAttr(eyelash_ctl, longName="map", attributeType="enum", enumName="Straight:ArcUp:ArcDn", keyable=True)
+    cmds.addAttr(eyelash_ctl, longName="shown", attributeType="long", minValue=0, maxValue=1, defaultValue=1, keyable=True)
+    cmds.connectAttr("%s.shown"%eyelash_ctl, "%s.inputs[%d].isVisible"%(eye_all_tex, posIndex))
     eyelash_prj = cmds.createNode('projection', name="eyelash_%s_projection#"%pos)
     cmds.setAttr("%s.defaultColor"%eyelash_prj, 0, 0, 0, type="float3")
     cmds.setAttr("%s.projType"%eyelash_prj, 1)
@@ -262,17 +264,17 @@ for side in "RL":
         if secIndex == 0 :  #"specA":
             cmds.setAttr("%s.invert"%sec_prj, 1)
             cmds.setAttr("%s.colorEntryList[1].position"%sec_ramp, 0.2)
-            cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgr"%sec_ramp)
-            cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgg"%sec_ramp)
-            cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgb"%sec_ramp) 
+            cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgr"%sec_prj)
+            cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgg"%sec_prj)
+            cmds.connectAttr("%s.shown"%specA_ctl, "%s.cgb"%sec_prj) 
             cmds.parent( sec_tex, specA_ctl )          
             cmds.parent( specA_ctl, eye_ctl )          
         elif secIndex == 1 :  #"specB":
             cmds.setAttr("%s.invert"%sec_prj, 1)
             cmds.setAttr("%s.colorEntryList[1].position"%sec_ramp, 0.17)
-            cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgr"%sec_ramp)
-            cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgg"%sec_ramp)
-            cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgb"%sec_ramp)
+            cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgr"%sec_prj)
+            cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgg"%sec_prj)
+            cmds.connectAttr("%s.shown"%specB_ctl, "%s.cgb"%sec_prj)
             cmds.parent( sec_tex, specB_ctl )
             cmds.parent( specB_ctl, eye_ctl )
         elif secIndex == 2 :  #"popil":
