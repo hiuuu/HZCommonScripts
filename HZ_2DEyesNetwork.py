@@ -137,17 +137,17 @@ for pos in "UD":
     cmds.setDrivenKeyframe("%s.type"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=4 )
     cmds.setDrivenKeyframe("%s.type"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=4 )
     if (posIndex == 0):   # up eyelash
-        cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=0 )
-        cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=1 )
-        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=0, v=-0.70 )
-        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=0.30 )
-        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=-0.64 )
-    elif (posIndex == 1):  # dn eyelash
         cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=1 )
         cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=0 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=0, v=-0.70 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=0.40 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=1.72 )
+    elif (posIndex == 1):  # dn eyelash
+        cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=0 )
+        cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=1 )
         cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=0, v=1.90 )
-        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=1.84 )
-        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=2.50 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=2.50 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=1.82 )
 
 eyesValsU = [0.0,0.125,0.25,0.375,0.5,0.625,0.75,0.875] # 8x8 houses each 1024x1024 pixels
 eyesValsV = [0.0,0.125,0.25,0.375,0.5,0.625,0.75,0.875]
