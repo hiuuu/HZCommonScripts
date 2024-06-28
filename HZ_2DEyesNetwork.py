@@ -11,16 +11,15 @@ cmds.setAttr("%s.inputs[0].transparency"%eyesLayeredShader, 1,1,1, type="float3"
 cmds.setAttr("%s.inputs[1].color"%eyesLayeredShader, 1, 1, 1, type="float3")
 cmds.setAttr("%s.inputs[1].transparency"%eyesLayeredShader, 0,0,0, type="float3")
 
+eyeLayer_count = 6
 eye_all_tex = cmds.createNode('layeredTexture', name="eyeAllLayeredTexture#")
-cmds.setAttr("%s.inputs"%eye_all_tex, size=4)
-cmds.setAttr("%s.inputs[0].blendMode"%eye_all_tex, 1)
-cmds.setAttr("%s.inputs[0].isVisible"%eye_all_tex, True)
-cmds.setAttr("%s.inputs[1].blendMode"%eye_all_tex, 1)
-cmds.setAttr("%s.inputs[1].isVisible"%eye_all_tex, True)
-cmds.setAttr("%s.inputs[2].blendMode"%eye_all_tex, 1)
-cmds.setAttr("%s.inputs[2].isVisible"%eye_all_tex, True)
-cmds.setAttr("%s.inputs[3].blendMode"%eye_all_tex, 1)
-cmds.setAttr("%s.inputs[3].isVisible"%eye_all_tex, True)
+cmds.setAttr("%s.inputs"%eye_all_tex, size=eyeLayer_count)
+for lay in range(eyeLayer_count):
+    cmds.setAttr("%s.inputs[%d].blendMode"%(eye_all_tex, eyeLayer_count), 1)
+    cmds.setAttr("%s.inputs[%d].isVisible"%(eye_all_tex, eyeLayer_count), True)
+cmds.setAttr("%s.inputs[0].color"%eye_all_tex, 0, 0, 1, type="float3")
+cmds.setAttr("%s.inputs[1].color"%eye_all_tex, 1, 0, 0, type="float3")
+cmds.removeMultiInstance("%s.inputs[6]"%eye_all_tex, b=True)
 
 eyeBallColor = cmds.createNode('phong', name='eyesballMat#')
 cmds.setAttr("%s.frozen"%eyeBallColor, 0)
@@ -97,9 +96,60 @@ cmds.connectAttr("%s.outColor"%eyeBallColor, "%s.inputs[1].color"%eyesLayeredSha
 cmds.connectAttr("%s.outTransparency"%eyeBallColor, "%s.inputs[1].transparency"%eyesLayeredShader)
 cmds.connectAttr("%s.outGlowColor"%eyeBallColor, "%s.inputs[1].glowColor"%eyesLayeredShader)
 
+#######################
+### Eyelashes Setup ###
+#######################
+posIndex = -1
+for pos in "UD":
+    posIndex += 1
+    eyelash_ctl = cmds.createNode('transform', parent=grp, name="eyeLash_%s_ctl"%pos)
+    cmds.addAttr(eyelash_ctl, longName="map", attributeType="enum", enumName="Straight:ArcUp:ArcDn", keyable=True)
+    eyelash_prj = cmds.createNode('projection', name="eyelash_%s_projection#"%pos)
+    cmds.setAttr("%s.defaultColor"%eyelash_prj, 0, 0, 0, type="float3")
+    cmds.setAttr("%s.projType"%eyelash_prj, 1)
+    cmds.connectAttr("%s.outTransparencyR"%eyelash_prj, "%s.inputs[%d].alpha"%(eye_all_tex, posIndex))
+    eyelash_3dtex = cmds.createNode('place3dTexture',  parent=eyelash_ctl, name="eyeLash_%s_place3dTexture#"%pos)
+    cmds.connectAttr("%s.worldInverseMatrix"%eyelash_3dtex, "%s.placementMatrix"%eyelash_prj)
+    eyeLash_p2d = cmds.createNode('place2dTexture', name="eyeLash_%s_place2dTexture#"%pos)
+    cmds.setAttr("%s.wrapU"%eyeLash_p2d, False)
+    cmds.setAttr("%s.wrapV"%eyeLash_p2d, False)
+    cmds.setAttr("%s.coverageU"%eyeLash_p2d, 10)
+    cmds.setAttr("%s.coverageV"%eyeLash_p2d, 10)
+    cmds.setAttr("%s.translateFrameU"%eyeLash_p2d, -4.5)
+    cmds.setAttr("%s.translateFrameV"%eyeLash_p2d, -3.5)
+    eyeLash_ramp = cmds.createNode('ramp', name="eyeLash_%s_ramp#"%pos)
+    cmds.setAttr("%s.defaultColor"%eyeLash_ramp, 1, 1, 1, type="float3")
+    cmds.setAttr("%s.type"%eyeLash_ramp, 4)
+    cmds.setAttr("%s.interpolation"%eyeLash_ramp, 0)
+    cmds.setAttr("%s.invert"%eyeLash_ramp, 0)
+    cmds.setAttr("%s.colorEntryList"%eyeLash_ramp, size=2)
+    cmds.setAttr("%s.colorEntryList[0].position"%eyeLash_ramp, 0)
+    cmds.setAttr("%s.colorEntryList[0].color"%eyeLash_ramp, 1, 1, 1, type="float3")
+    cmds.setAttr("%s.colorEntryList[1].position"%eyeLash_ramp, 0.5)
+    cmds.setAttr("%s.colorEntryList[1].color"%eyeLash_ramp, 0, 0, 0, type="float3") 
+    cmds.connectAttr("%s.outColor"%eyeLash_ramp, "%s.transparency"%eyelash_prj)
+    cmds.connectAttr("%s.outUV"%eyeLash_p2d, "%s.uvCoord"%eyeLash_ramp)
+    cmds.connectAttr("%s.outUvFilterSize"%eyeLash_p2d, "%s.uvFilterSize"%eyeLash_ramp)
+    cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=0, v=1 )
+    cmds.setDrivenKeyframe("%s.type"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=0, v=5 )
+    cmds.setDrivenKeyframe("%s.type"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=4 )
+    cmds.setDrivenKeyframe("%s.type"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=4 )
+    if (posIndex == 0):   # up eyelash
+        cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=0 )
+        cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=1 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=0, v=-0.70 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=0.30 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=-0.64 )
+    elif (posIndex == 1):  # dn eyelash
+        cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=1 )
+        cmds.setDrivenKeyframe("%s.invert"%eyeLash_ramp, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=0 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=0, v=1.90 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=1, v=1.84 )
+        cmds.setDrivenKeyframe("%s.offsetV"%eyeLash_p2d, cd="%s.map"%eyelash_ctl, itt='linear', ott='step', dv=2, v=2.50 )
+
 eyesValsU = [0.0,0.125,0.25,0.375,0.5,0.625,0.75,0.875] # 8x8 houses each 1024x1024 pixels
 eyesValsV = [0.0,0.125,0.25,0.375,0.5,0.625,0.75,0.875]
-sideIndex = -1
+sideIndex = 1
 for side in "RL":
     sideIndex += 1
     specA_ctl = cmds.createNode('transform', parent=grp, name="specA_%s_ctl"%side)
@@ -114,7 +164,6 @@ for side in "RL":
     ##############################
     ### 2D eyes Textures Setup ###
     ##############################
-
     eye2D_col_prj = cmds.createNode('projection', name="eye2D_col_%s_projection#"%side)
     cmds.setAttr("%s.defaultColor"%eye2D_col_prj, 0, 0, 0, type="float3")
     cmds.setAttr("%s.projType"%eye2D_col_prj, 1)
@@ -167,7 +216,6 @@ for side in "RL":
     #########################################
     ### 2D eyes Popil and Speculars Setup ###
     #########################################
-        
     eye3DShown_cond = cmds.createNode('condition', name="eye3D_shown_%s_condition#"%side)
     cmds.setAttr("%s.operation"%eye3DShown_cond, 1)  # op => not equals
     cmds.setAttr("%s.secondTerm"%eye3DShown_cond, 0)  
@@ -237,6 +285,6 @@ for side in "RL":
 pp_geo,_  = cmds.polyPlane(cuv=2, sy=3, sx=3, h=8, ch=1, w=8, ax=(0, 1, 0))
 cmds.setAttr("%s.rotateX"%pp_geo, 90)
 cmds.sets(forceElement='%s2SG'%eyesLayeredShader, e=1)
-cmds.move( -1.5, 0, 0,grp+'|eye_R_ctl', r=1, os=1, wd=1)
+cmds.move( -1.5, 0, 0, grp+'|eye_R_ctl', r=1, os=1, wd=1)
 cmds.move( 1.5, 0, 0, grp+'|eye_L_ctl', r=1, os=1, wd=1)
 cmds.group(grp, pp_geo)
