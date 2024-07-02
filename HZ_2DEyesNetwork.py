@@ -105,7 +105,7 @@ for pos in "UD":
     eyelash_ctl = cmds.createNode('transform', parent=grp, name="eyeLash_%s_ctl"%pos)
     cmds.addAttr(eyelash_ctl, longName="map", attributeType="enum", enumName="Straight:ArcUp:ArcDn", keyable=True)
     cmds.addAttr(eyelash_ctl, longName="shown", attributeType="bool", defaultValue="on", keyable=True)
-    //cmds.connectAttr("%s.shown"%eyelash_ctl, "%s.inputs[%d].isVisible"%(eye_all_tex, posIndex))
+    #cmds.connectAttr("%s.shown"%eyelash_ctl, "%s.inputs[%d].isVisible"%(eye_all_tex, posIndex))
     eyelash_prj = cmds.createNode('projection', name="eyelash_%s_projection#"%pos)
     cmds.setAttr("%s.defaultColor"%eyelash_prj, 0, 0, 0, type="float3")
     cmds.setAttr("%s.projType"%eyelash_prj, 1)
